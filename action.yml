@@ -3,46 +3,22 @@ description: 'Compute compatible Juliaup channels'
 runs:
   using: "composite"
   steps:
-    - uses: actions/github-script@v7
+    - name: Compute Manifest hash
       id: project-hash
-      with:
-        script: |
-          const crypto = require('crypto')
-          const path = require('path')
-          const fs = require('fs')
-          console.log('THe orig is')
-          console.log(process.env.GITHUB_ACTION_PATH)
-          const ourPath = path.join(process.env.GITHUB_ACTION_PATH, 'Manifest.toml')
-          console.log('Our path is')
-          console.log(ourPath)
-
-          const filecontent = fs.readdirSync(process.env.GITHUB_ACTION_PATH)
-
-          console.log('The directory content is')
-          console.log(filecontent)
-
-          console.log('The file exists')
-          console.log(fs.existsSync(OurPath))
-
-          const ourHash = crypto.createHash('sha1').setEncoding('hex')
-
-          const ourResult = fs.createReadStream(ourPath).pipe(ourHash, 'finish').digest('hex')
-
-          console.log('Our result is')
-          console.log(ourResult)
-
-          return ourResult
-        result-encoding: string
+      shell: pwsh
+      run: |
+        $ourHash = Get-FileHash -LiteralPath $env:GITHUB_ACTION_PATH\Manifest.toml
+        "MANIFEST_HASH=${$ourHash.Hash}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
     - name: Check Julia version
       shell: bash
       id: julia-version
       run: |
-        echo "juliaversion=$(julia -v)" >> $GITHUB_OUTPUT
+        echo "JULIA_VERSION=$(julia -v)" >> $GITHUB_OUTPUT
     - uses: actions/cache@v4
       id: cache-project
       with:
         path: ${{ github.action_path }}/.julia
-        key: julia-get-compatible-juliaup-channels-cache-${{ runner.os }}-${{ steps.julia-version.outputs.juliaversion }}-${{ steps.project-hash.outputs.result }}
+        key: julia-get-compatible-juliaup-channels-cache-${{ runner.os }}-${{ steps.julia-version.outputs.JULIA_VERSION }}-${{ steps.project-hash.outputs.MANIFEST_HASH }}
     - name: Install and precompile
       if: steps.cache-project.outputs.cache-hit != 'true'
       run: julia --project=${{ github.action_path }} -e 'import Pkg; Pkg.instantiate()'
@@ -53,7 +29,7 @@ runs:
       if: steps.cache-project.outputs.cache-hit != 'true'
       with:
         path: ${{ github.action_path }}/.julia
-        key: julia-get-compatible-juliaup-channels-cache-${{ runner.os }}-${{ steps.julia-version.outputs.juliaversion }}-${{ steps.project-hash.outputs.result }}
+        key: julia-get-compatible-juliaup-channels-cache-${{ runner.os }}-${{ steps.julia-version.outputs.JULIA_VERSION }}-${{ steps.project-hash.outputs.MANIFEST_HASH }}
     - name: Compute compabitle Juliaup channels
       run: julia --project=${{ github.action_path }} ${{ github.action_path }}/main.jl
       shell: bash
