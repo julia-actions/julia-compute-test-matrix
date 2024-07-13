@@ -6,7 +6,24 @@ runs:
     - uses: actions/github-script@v7
       id: project-hash
       with:
-        script: return require('fs').createReadStream(require('path').join(process.env.GITHUB_ACTION_PATH, 'Manifest.toml')).pipe(require('crypto').createHash('sha1').setEncoding('hex'), 'finish').digest('hex')
+        script: |
+          const crypto = require('crypto')
+          const path = require('path')
+          const fs = rquire('fs')
+          console.log('THe orig is')
+          console.log(process.env.GITHUB_ACTION_PATH)
+          const ourPath = path.join(process.env.GITHUB_ACTION_PATH, 'Manifest.toml')
+          console.log('Our path is')
+          console.log(ourPath)
+
+          const ourHash = crypto.createHash('sha1').setEncoding('hex')
+
+          const ourResult = fs.createReadStream(ourPath).pipe(ourHash, 'finish').digest('hex')
+
+          console.log('Our result is')
+          console.log(ourResult)
+
+          return ourResult
         result-encoding: string
     - name: Check Julia version
       shell: bash
