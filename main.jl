@@ -34,12 +34,6 @@ versions = construct_channel_list.([
 
 filter!(i -> i[1] in version_spec, versions)
 
-as_dict = Dict("channels" => collect(Iterators.flatten(map(i->i.second, versions))))
+flat_versions = collect(Iterators.flatten(map(i->i.second, versions)))
 
-println("We are about to save the following out")
-println()
-JSON.print(stdout, as_dict)
-println()
-println("WE ARE DONE")
-
-GitHubActions.set_output("juliaup_channels", as_dict)
+GitHubActions.set_output("juliaup_channels", flat_versions)
