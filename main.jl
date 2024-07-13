@@ -36,6 +36,9 @@ filter!(i -> i[1] in version_spec, versions)
 
 as_dict = Dict("channels" => Iterators.flatten(map(i->i.second, versions)))
 
+println("We are about to save the following out")
+println(JSON.print(as_dict))
+
 open(ENV["GITHUB_OUTPUT"], "a") do f
     print(f, "juliaup_channels=")
     print(f, JSON.print(f, as_dict))
