@@ -1,5 +1,8 @@
 name: 'Julia Juliaup Channel Computation'
 description: 'Compute compatible Juliaup channels'
+outputs:
+  juliaup-channels:
+    value: ${{ steps.compute_juliaup_channels.outputs.juliaup-channels }}
 runs:
   using: "composite"
   steps:
@@ -30,7 +33,8 @@ runs:
       with:
         path: ${{ github.action_path }}/.julia
         key: julia-get-compatible-juliaup-channels-cache-${{ runner.os }}-${{ steps.julia-version.outputs.JULIA_VERSION }}-${{ steps.project-hash.outputs.MANIFEST_HASH }}
-    - name: Compute compabitle Juliaup channels
+    - name: Compute compatible Juliaup channels
+      id: compute_juliaup_channels
       run: julia --project=${{ github.action_path }} ${{ github.action_path }}/main.jl
       shell: bash
       env:

@@ -36,5 +36,4 @@ filter!(i -> i[1] in version_spec, versions)
 
 flat_versions = collect(Iterators.flatten(map(i->i.second, versions)))
 
-GitHubActions.set_output("JULIAUP_CHANNELS", flat_versions)
-GitHubActions.set_output("SOMETHINGSIMPLE", "David")
+GitHubActions.set_output("juliaup-channels", flat_versions)
