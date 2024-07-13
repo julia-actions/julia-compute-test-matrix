@@ -8,7 +8,9 @@ runs:
       shell: pwsh
       run: |
         $ourHash = Get-FileHash -LiteralPath $env:GITHUB_ACTION_PATH\Manifest.toml
+        $outVar = "MANIFEST_HASH=${$ourHash.Hash}"
         "MANIFEST_HASH=${$ourHash.Hash}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        Write-Host $outVar
     - name: Check Julia version
       shell: bash
       id: julia-version
