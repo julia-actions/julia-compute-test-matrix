@@ -16,6 +16,14 @@ runs:
           console.log('Our path is')
           console.log(ourPath)
 
+          const filecontent = fs.readdirSync(ourPath)
+
+          console.log('The directory content is')
+          console.log(filecontent)
+
+          console.log('The file exists')
+          console.log(fs.existsSync(OurPath))
+
           const ourHash = crypto.createHash('sha1').setEncoding('hex')
 
           const ourResult = fs.createReadStream(ourPath).pipe(ourHash, 'finish').digest('hex')
