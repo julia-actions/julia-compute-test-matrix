@@ -36,6 +36,6 @@ runs:
     - name: Compute compatible Juliaup channels
       id: compute_juliaup_channels
       run: julia --project=${{ github.action_path }} ${{ github.action_path }}/main.jl
-      shell: bash
+      shell: pwsh
       env:
         JULIA_DEPOT_PATH: ${{ github.action_path }}/.julia
