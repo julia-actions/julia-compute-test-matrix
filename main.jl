@@ -38,7 +38,3 @@ flat_versions = collect(Iterators.flatten(map(i->i.second, versions)))
 
 GitHubActions.set_output("JULIAUP_CHANNELS", flat_versions)
 GitHubActions.set_output("SOMETHINGSIMPLE", "David")
-
-println("WE DID SET THE OUTPUT TO")
-
-JSON.print(flat_versions)
