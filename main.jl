@@ -1,4 +1,4 @@
-import TOML, Pkg, JSON
+import TOML, Pkg, JSON, GitHubActions
 
 project_content = TOML.parsefile("Project.toml")
 
@@ -42,8 +42,4 @@ JSON.print(stdout, as_dict)
 println()
 println("WE ARE DONE")
 
-open(ENV["GITHUB_OUTPUT"], "a") do f
-    print(f, "juliaup_channels=")
-    JSON.print(f, as_dict)
-    println()
-end
+GitHubActions.set_output("juliaup_channels", as_dict)

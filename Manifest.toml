@@ -2,7 +2,7 @@
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "9aedd108c0068b18379d1d831ae227f9e04e9e88"
+project_hash = "8e28ef3b2befd4cb93456097cc4af4054f23dfc7"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -25,6 +25,12 @@ version = "1.6.0"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
+
+[[deps.GitHubActions]]
+deps = ["JSON", "Logging"]
+git-tree-sha1 = "8750718611144f23584ca265d899baa1bf1a4531"
+uuid = "6b79fd1a-b13a-48ab-b6b0-aaee1fee41df"
+version = "0.1.7"
 
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
