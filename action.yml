@@ -7,13 +7,8 @@ runs:
       id: project-hash
       shell: pwsh
       run: |
-        $ourPath = "$env:GITHUB_ACTION_PATH\Manifest.toml"
-        Write-Host $ourPath
-        gci $env:GITHUB_ACTION_PATH
-        $ourHash = Get-FileHash -LiteralPath $ourPath
-        Write-Host $ourHash
+        $ourHash = Get-FileHash -LiteralPath "$env:GITHUB_ACTION_PATH\Manifest.toml"
         "MANIFEST_HASH=$($ourHash.Hash)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        Write-Host $outVar
     - name: Check Julia version
       shell: bash
       id: julia-version
