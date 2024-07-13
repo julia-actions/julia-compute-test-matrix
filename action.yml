@@ -13,7 +13,7 @@ runs:
         $ourHash = (Get-FileHash -LiteralPath $ourPath).Hash
         Write-Host $ourHash
         $outVar = "MANIFEST_HASH=$ourHash"
-        "MANIFEST_HASH=${$ourHash.Hash}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "MANIFEST_HASH=$($ourHash.Hash)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         Write-Host $outVar
     - name: Check Julia version
       shell: bash
