@@ -10,9 +10,8 @@ runs:
         $ourPath = "$env:GITHUB_ACTION_PATH\Manifest.toml"
         Write-Host $ourPath
         gci $env:GITHUB_ACTION_PATH
-        $ourHash = (Get-FileHash -LiteralPath $ourPath).Hash
+        $ourHash = Get-FileHash -LiteralPath $ourPath
         Write-Host $ourHash
-        $outVar = "MANIFEST_HASH=$ourHash"
         "MANIFEST_HASH=$($ourHash.Hash)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         Write-Host $outVar
     - name: Check Julia version
