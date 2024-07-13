@@ -9,7 +9,7 @@ runs:
         script: |
           const crypto = require('crypto')
           const path = require('path')
-          const fs = rquire('fs')
+          const fs = require('fs')
           console.log('THe orig is')
           console.log(process.env.GITHUB_ACTION_PATH)
           const ourPath = path.join(process.env.GITHUB_ACTION_PATH, 'Manifest.toml')
