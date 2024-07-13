@@ -16,7 +16,7 @@ runs:
           console.log('Our path is')
           console.log(ourPath)
 
-          const filecontent = fs.readdirSync(ourPath)
+          const filecontent = fs.readdirSync(process.env.GITHUB_ACTION_PATH)
 
           console.log('The directory content is')
           console.log(filecontent)
