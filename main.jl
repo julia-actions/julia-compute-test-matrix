@@ -42,6 +42,6 @@ println("WE ARE DONE")
 
 open(ENV["GITHUB_OUTPUT"], "a") do f
     print(f, "juliaup_channels=")
-    print(f, JSON.print(f, as_dict))
+    JSON.print(f, as_dict)
     println()
 end
