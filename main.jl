@@ -40,4 +40,4 @@ GitHubActions.set_output("JULIAUP_CHANNELS", flat_versions)
 
 println("WE DID SET THE OUTPUT TO")
 
-JSON.print(flat_version)
+JSON.print(flat_versions)

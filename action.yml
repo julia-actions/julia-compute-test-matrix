@@ -7,7 +7,10 @@ runs:
       id: project-hash
       shell: pwsh
       run: |
-        $ourHash = Get-FileHash -LiteralPath "$env:GITHUB_ACTION_PATH\Manifest.toml"
+        $ourPath = "$env:GITHUB_ACTION_PATH\Manifest.toml"
+        Write-Host $ourPath
+        gci $env:GITHUB_ACTION_PATH
+        $ourHash = Get-FileHash -LiteralPath 
         $outVar = "MANIFEST_HASH=${$ourHash.Hash}"
         "MANIFEST_HASH=${$ourHash.Hash}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         Write-Host $outVar
