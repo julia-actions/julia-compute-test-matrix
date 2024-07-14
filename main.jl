@@ -6,15 +6,15 @@ julia_compat_bound = project_content["compat"]["julia"]
 
 version_spec = Pkg.Types.semver_spec(julia_compat_bound)
 
-println("THE PASSED ARCH IS $(ENV["JULIA_ARCH"])")
+julia_arch = ENV["JULIA_ARCH"]
 
 function construct_channel_list(version)
     if Sys.iswindows()
-        return version => ["$version~x64", "$version~x86"]
+        return version => ["$version~$julia_arch"]
     elseif Sys.isapple()
-        return version => ["$version"]
+        return version => ["$version~$julia_arch"]
     elseif Sys.islinux()
-        return version => ["$version"]
+        return version => ["$version~$julia_arch"]
     else
         error("Unknown platform")
     end
