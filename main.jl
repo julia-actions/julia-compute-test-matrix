@@ -47,4 +47,4 @@ flat_versions = [
     Dict("os" => "macos-latest", "juliaup_channel" => "release"),
 ]
 
-GitHubActions.set_output("juliaup-channels", flat_versions)
+GitHubActions.set_output("test-matrix", flat_versions)
