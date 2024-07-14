@@ -6,6 +6,8 @@ julia_compat_bound = project_content["compat"]["julia"]
 
 version_spec = Pkg.Types.semver_spec(julia_compat_bound)
 
+println("THE PASSED ARCH IS $(ENV["JULIA_ARCH"])")
+
 function construct_channel_list(version)
     if Sys.iswindows()
         return version => ["$version~x64", "$version~x86"]

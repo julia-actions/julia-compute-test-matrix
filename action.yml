@@ -1,5 +1,8 @@
 name: 'Julia Juliaup Channel Computation'
 description: 'Compute compatible Juliaup channels'
+inputs:
+  julia-arch:
+    required: false
 outputs:
   juliaup-channels:
     value: ${{ steps.compute_juliaup_channels.outputs.juliaup-channels }}
@@ -41,3 +44,4 @@ runs:
       env:
         JULIA_PROJECT: ${{ github.action_path }}
         JULIA_DEPOT_PATH: ${{ runner.tool_cache }}/julia-get-compatible-juliaup-channels
+        JULIA_ARCH: ${{ inputs.julia-arch }}
