@@ -2,25 +2,25 @@ name: 'Julia compute test matrix'
 description: 'Compute a test matrix'
 inputs:
   include-release-versions:
-    required: true
+    required: false
     default: true
   include-lts-versions:
-    required: true
+    required: false
     default: true
   include-all-compatible-minor-versions:
-    required: true
+    required: false
     default: false
   include-rc-versions:
-    required: true
+    required: false
     default: false
   include-beta-versions:
-    required: true
+    required: false
     default: false
   include-alpha-versions:
-    required: true
+    required: false
     default: false
   include-nightly-versions:
-    required: true
+    required: false
     default: false
 outputs:
   test-matrix:
