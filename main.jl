@@ -42,8 +42,8 @@ if ENV["INCLUDE_ALPHA_VERSIONS"] == "true"
     # push!(versions, v"1.110-rc1")
 end
 
-
-
+# TODO Implement
+#ENV["INCLUDE_SMALLEST_COMPATIBLE_MINOR_VERSIONS"]
 
 versions = [
     v"1.0.5",

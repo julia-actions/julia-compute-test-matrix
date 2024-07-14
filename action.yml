@@ -13,6 +13,10 @@ inputs:
     type: boolean
     required: false
     default: false
+  include-smallest-compatible-minor-versions:
+    type: boolean
+    required: false
+    default: true
   include-rc-versions:
     type: boolean
     required: false
@@ -73,6 +77,7 @@ runs:
         INCLUDE_RELEASE_VERSIONS: ${{ inputs.include-release-versions }}
         INCLUDE_LTS_VERSIONS: ${{ inputs.include-lts-versions }}
         INCLUDE_ALL_COMPATIBLE_MINOR_VERSIONS: ${{ inputs.include-all-compatible-minor-versions }}
+        INCLUDE_SMALLEST_COMPATIBLE_MINOR_VERSIONS: ${{ inputs.include-smallest-compatible-minor-versions }}
         INCLUDE_RC_VERSIONS: ${{ inputs.include-rc-versions }}
         INCLUDE_BETA_VERSIONS: ${{ inputs.include-beta-versions }}
         INCLUDE_ALPHA_VERSIONS: ${{ inputs.include-alpha-versions }}
