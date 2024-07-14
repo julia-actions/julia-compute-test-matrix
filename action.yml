@@ -1,5 +1,27 @@
 name: 'Julia compute test matrix'
 description: 'Compute a test matrix'
+inputs:
+  include-release-versions:
+    required: true
+    default: true
+  include-lts-versions:
+    required: true
+    default: true
+  include-all-compatible-minor-versions:
+    required: true
+    default: false
+  include-rc-versions:
+    required: true
+    default: false
+  include-beta-versions:
+    required: true
+    default: false
+  include-alpha-versions:
+    required: true
+    default: false
+  include-nightly-versions:
+    required: true
+    default: false
 outputs:
   test-matrix:
     value: ${{ steps.compute-test-matrix.outputs.test-matrix }}
@@ -41,3 +63,10 @@ runs:
       env:
         JULIA_PROJECT: ${{ github.action_path }}
         JULIA_DEPOT_PATH: ${{ runner.tool_cache }}/julia-get-compatible-juliaup-channels
+        INCLUDE_RELEASE_VERSIONS: ${{ inputs.include-release-versions }}
+        INCLUDE_LTS_VERSIONS: ${{ inputs.include-lts-versions }}
+        INCLUDE_ALL_COMPATIBLE_MINOR_VERSIONS: ${{ inputs.include-all-compatible-minor-versions }}
+        INCLUDE_RC_VERSIONS: ${{ inputs.include-rc-versions }}
+        INCLUDE_BETA_VERSIONS: ${{ inputs.include-beta-versions }}
+        INCLUDE_ALPHA_VERSIONS: ${{ inputs.include-alpha-versions }}
+        INCLUDE_NIGHTLY_VERSIONS: ${{ inputs.include-nightly-versions }}
