@@ -37,18 +37,18 @@ versions = [
 filter!(i -> i in version_spec, versions)
 
 function add_matrix_entries!(results, v)
-    push!(results, Dict("os" => "windows-latest", "juliaup_channel" => "$v~x64"))
-    push!(results, Dict("os" => "windows-latest", "juliaup_channel" => "$v~x86"))
-    push!(results, Dict("os" => "ubuntu-latest", "juliaup_channel" => "$v~x64"))
-    push!(results, Dict("os" => "ubuntu-latest", "juliaup_channel" => "$v~x86"))
+    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "$v~x64"))
+    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "$v~x86"))
+    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "$v~x64"))
+    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "$v~x86"))
     if v==v"1.4.2"
         # For some reason Julia 1.4 doesn't work on macos-13, so we downgrade to macos-12
-        push!(results, Dict("os" => "macos-12", "juliaup_channel" => "$v~x64"))
+        push!(results, Dict("os" => "macos-12", "juliaup-channel" => "$v~x64"))
     else
-        push!(results, Dict("os" => "macos-13", "juliaup_channel" => "$v~x64"))
+        push!(results, Dict("os" => "macos-13", "juliaup-channel" => "$v~x64"))
     end
     if v>=v"1.8.0"
-        push!(results, Dict("os" => "macos-latest", "juliaup_channel" => "$v~aarch64"))
+        push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "$v~aarch64"))
     end
 end
 
@@ -60,8 +60,10 @@ end
 
 
 # flat_versions = [
-#     Dict("os" => "ubuntu-latest", "juliaup_channel" => "release"),
-#     Dict("os" => "macos-latest", "juliaup_channel" => "release"),
+#     Dict("os" => "ubuntu-latest", "juliaup-channel" => "release"),
+#     Dict("os" => "macos-latest", "juliaup-channel" => "release"),
 # ]
+
+println(results)
 
 GitHubActions.set_output("test-matrix", results)
