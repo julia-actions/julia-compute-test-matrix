@@ -42,4 +42,9 @@ filter!(i -> i[1] in version_spec, versions)
 
 flat_versions = collect(Iterators.flatten(map(i->i.second, versions)))
 
+flat_versions = [
+    Dict("os" => "ubuntu-latest", "juliaup_channel" => "release"),
+    Dict("os" => "macos-latest", "juliaup_channel" => "release"),
+]
+
 GitHubActions.set_output("juliaup-channels", flat_versions)
