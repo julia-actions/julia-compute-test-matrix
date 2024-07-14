@@ -34,6 +34,10 @@ versions = construct_channel_list.([
     v"1.10.4"
 ])
 
+if Sys.isapple() && ENV["JULIA_ARCH"] == "aarch64"
+    filter!(i -> i >= v"1.7.0", versions)
+end
+
 filter!(i -> i[1] in version_spec, versions)
 
 flat_versions = collect(Iterators.flatten(map(i->i.second, versions)))
