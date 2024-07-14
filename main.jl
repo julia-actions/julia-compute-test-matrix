@@ -41,17 +41,6 @@ if ENV["INCLUDE_SMALLEST_COMPATIBLE_MINOR_VERSIONS"] == "true"
     push!(versions, smallest_compatible_version)
 end
 
-if ENV["INCLUDE_RC_VERSIONS"] == "true"
-    push!(versions, v"1.11.0-rc0")
-end
-
-if ENV["INCLUDE_BETA_VERSIONS"] == "true"
-end
-
-if ENV["INCLUDE_ALPHA_VERSIONS"] == "true"
-end
-
-
 filter!(i -> i in version_spec, versions)
 
 function add_matrix_entries!(results, v)
@@ -74,6 +63,21 @@ results = []
 
 for v in versions
     add_matrix_entries!(results, v)
+end
+
+if ENV["INCLUDE_RC_VERSIONS"] == "true"
+    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x64"))
+    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x86"))
+    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x64"))
+    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x86"))
+    push!(results, Dict("os" => "macos-13", "juliaup-channel" => "rc~x64"))
+    push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "rc~aarch64"))
+end
+
+if ENV["INCLUDE_BETA_VERSIONS"] == "true"
+end
+
+if ENV["INCLUDE_ALPHA_VERSIONS"] == "true"
 end
 
 if ENV["INCLUDE_NIGHTLY_VERSIONS"] == "true"
