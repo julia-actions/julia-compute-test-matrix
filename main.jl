@@ -50,6 +50,6 @@ end
 #     Dict("os" => "macos-latest", "juliaup-channel" => "release"),
 # ]
 
-println(results)
+JSON.print(results)
 
 GitHubActions.set_output("test-matrix", results)
