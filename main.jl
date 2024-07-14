@@ -35,7 +35,7 @@ versions = construct_channel_list.([
 ])
 
 if Sys.isapple() && ENV["JULIA_ARCH"] == "aarch64"
-    filter!(i -> i >= v"1.8.0", versions)
+    filter!(i -> i.first >= v"1.8.0", versions)
 end
 
 filter!(i -> i[1] in version_spec, versions)
