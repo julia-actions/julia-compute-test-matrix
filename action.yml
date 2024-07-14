@@ -4,8 +4,8 @@ inputs:
   julia-arch:
     required: false
 outputs:
-  juliaup-channels:
-    value: ${{ steps.compute_juliaup_channels.outputs.juliaup-channels }}
+  test-matrix:
+    value: ${{ steps.compute-test-matrix.outputs.test-matrix }}
 runs:
   using: "composite"
   steps:
@@ -38,7 +38,7 @@ runs:
         path: ${{ runner.tool_cache }}/julia-get-compatible-juliaup-channels
         key: julia-get-compatible-juliaup-channels-cache-${{ runner.os }}-${{ steps.julia-version.outputs.JULIA_VERSION }}-${{ steps.project-hash.outputs.MANIFEST_HASH }}
     - name: Compute compatible Juliaup channels
-      id: compute_juliaup_channels
+      id: compute-test-matrix
       run: julia ${{ github.action_path }}/main.jl
       shell: pwsh
       env:
