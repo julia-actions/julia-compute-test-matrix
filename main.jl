@@ -8,44 +8,7 @@ version_spec = Pkg.Types.semver_spec(julia_compat_bound)
 
 versions = Set{VersionNumber}()
 
-if ENV["INCLUDE_RELEASE_VERSIONS"] == "true"
-    push!(versions, v"1.10.4")
-end
-
-if ENV["INCLUDE_LTS_VERSIONS"] == "true"
-    push!(versions, v"1.6.7")
-end
-
-if ENV["INCLUDE_ALL_COMPATIBLE_MINOR_VERSIONS"] == "true"
-    push!(versions, v"1.0.5")
-    push!(versions, v"1.1.1")
-    push!(versions, v"1.2.0")
-    push!(versions, v"1.3.1")
-    push!(versions, v"1.4.2")
-    push!(versions, v"1.5.4")
-    push!(versions, v"1.6.7")
-    push!(versions, v"1.7.3")
-    push!(versions, v"1.8.5")
-    push!(versions, v"1.9.4")
-    push!(versions, v"1.10.4")
-end
-
-if ENV["INCLUDE_RC_VERSIONS"] == "true"
-    push!(versions, v"1.110-rc1")
-end
-
-if ENV["INCLUDE_BETA_VERSIONS"] == "true"
-    # push!(versions, v"1.110-rc1")
-end
-
-if ENV["INCLUDE_ALPHA_VERSIONS"] == "true"
-    # push!(versions, v"1.110-rc1")
-end
-
-# TODO Implement
-#ENV["INCLUDE_SMALLEST_COMPATIBLE_MINOR_VERSIONS"]
-
-versions = [
+all_existing_versions = [
     v"1.0.5",
     v"1.1.1",
     v"1.2.0",
@@ -58,6 +21,25 @@ versions = [
     v"1.9.4",
     v"1.10.4"
 ]
+
+all_compatible_versions = filter(i -> i in version_spec, all_existing_versions)
+
+if ENV["INCLUDE_RELEASE_VERSIONS"] == "true"
+    push!(versions, v"1.10.4")
+end
+
+if ENV["INCLUDE_LTS_VERSIONS"] == "true"
+    push!(versions, v"1.6.7")
+end
+
+if ENV["INCLUDE_ALL_COMPATIBLE_MINOR_VERSIONS"] == "true"
+    append!(versions, all_compatible_versions)
+end
+
+if ENV["INCLUDE_SMALLEST_COMPATIBLE_MINOR_VERSIONS"] == "true"
+    smallest_compatible_version = first(sort(all_compatible_versions))
+    push!(versions, smallest_compatible_version)
+end
 
 filter!(i -> i in version_spec, versions)
 
