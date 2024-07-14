@@ -33,7 +33,9 @@ if ENV["INCLUDE_LTS_VERSIONS"] == "true"
 end
 
 if ENV["INCLUDE_ALL_COMPATIBLE_MINOR_VERSIONS"] == "true"
-    append!(versions, all_compatible_versions)
+    for i in all_compatible_versions
+        push!(versions, i)
+    end
 end
 
 if ENV["INCLUDE_SMALLEST_COMPATIBLE_MINOR_VERSIONS"] == "true"
