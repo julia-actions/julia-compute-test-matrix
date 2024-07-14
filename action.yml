@@ -2,24 +2,31 @@ name: 'Julia compute test matrix'
 description: 'Compute a test matrix'
 inputs:
   include-release-versions:
+    type: boolean
     required: false
     default: true
   include-lts-versions:
+    type: boolean
     required: false
     default: true
   include-all-compatible-minor-versions:
+    type: boolean
     required: false
     default: false
   include-rc-versions:
+    type: boolean
     required: false
     default: false
   include-beta-versions:
+    type: boolean
     required: false
     default: false
   include-alpha-versions:
+    type: boolean
     required: false
     default: false
   include-nightly-versions:
+    type: boolean
     required: false
     default: false
 outputs:
