@@ -1,5 +1,5 @@
-name: 'Julia Juliaup Channel Computation'
-description: 'Compute compatible Juliaup channels'
+name: 'Julia compute test matrix'
+description: 'Compute a test matrix'
 outputs:
   test-matrix:
     value: ${{ steps.compute-test-matrix.outputs.test-matrix }}
