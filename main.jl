@@ -46,17 +46,32 @@ end
 filter!(i -> i in version_spec, versions)
 
 function add_matrix_entries!(results, v)
-    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "$v~x64"))
-    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "$v~x86"))
-    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "$v~x64"))
-    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "$v~x86"))
-    if v==v"1.4.2"
-        # For some reason Julia 1.4 doesn't work on macos-13, so we downgrade to macos-12
-        push!(results, Dict("os" => "macos-12", "juliaup-channel" => "$v~x64"))
-    else
-        push!(results, Dict("os" => "macos-13", "juliaup-channel" => "$v~x64"))
+    if ENV["INCLUDE_WINDOWS_X64"] == "true"
+        push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "$v~x64"))
     end
-    if v>=v"1.8.0"
+
+    if ENV["INCLUDE_WINDOWS_X86"] == "true"
+        push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "$v~x86"))
+    end
+
+    if ENV["INCLUDE_LINUX_X64"] == "true"
+        push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "$v~x64"))
+    end
+
+    if ENV["INCLUDE_LINUX_X86"] == "true"
+        push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "$v~x86"))
+    end
+
+    if ENV["INCLUDE_MACOS_X64"] == "true"
+        if v==v"1.4.2"
+            # For some reason Julia 1.4 doesn't work on macos-13, so we downgrade to macos-12
+            push!(results, Dict("os" => "macos-12", "juliaup-channel" => "$v~x64"))
+        else
+            push!(results, Dict("os" => "macos-13", "juliaup-channel" => "$v~x64"))
+        end
+    end
+    
+    if if ENV["INCLUDE_MACOS_AARCH64"] == "true" && v>=v"1.8.0"
         push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "$v~aarch64"))
     end
 end
@@ -68,12 +83,30 @@ for v in versions
 end
 
 if ENV["INCLUDE_RC_VERSIONS"] == "true"
-    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x64"))
-    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x86"))
-    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x64"))
-    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x86"))
-    push!(results, Dict("os" => "macos-13", "juliaup-channel" => "rc~x64"))
-    push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "rc~aarch64"))
+    if ENV["INCLUDE_WINDOWS_X64"] == "true"
+        push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x64"))
+    end
+
+    if ENV["INCLUDE_WINDOWS_X86"] == "true"
+        push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x86"))
+    end
+
+    if ENV["INCLUDE_LINUX_X64"] == "true"
+        push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x64"))
+    end
+
+    if ENV["INCLUDE_LINUX_X86"] == "true"
+        push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x86"))
+    end
+
+    if ENV["INCLUDE_MACOS_X64"] == "true"
+        push!(results, Dict("os" => "macos-13", "juliaup-channel" => "rc~x64"))
+    end
+
+    if if ENV["INCLUDE_MACOS_AARCH64"] == "true"
+        push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "rc~aarch64"))
+    end
+
 end
 
 if ENV["INCLUDE_BETA_VERSIONS"] == "true"
@@ -83,12 +116,30 @@ if ENV["INCLUDE_ALPHA_VERSIONS"] == "true"
 end
 
 if ENV["INCLUDE_NIGHTLY_VERSIONS"] == "true"
-    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "nightly~x64"))
-    push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "nightly~x86"))
-    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "nightly~x64"))
-    push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "nightly~x86"))
-    push!(results, Dict("os" => "macos-13", "juliaup-channel" => "nightly~x64"))
-    push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "nightly~aarch64"))
+    if ENV["INCLUDE_WINDOWS_X64"] == "true"
+        push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "nightly~x64"))
+    end
+
+    if ENV["INCLUDE_WINDOWS_X86"] == "true"
+        push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "nightly~x86"))
+    end
+
+    if ENV["INCLUDE_LINUX_X64"] == "true"
+        push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "nightly~x64"))
+    end
+
+    if ENV["INCLUDE_LINUX_X86"] == "true"
+        push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "nightly~x86"))
+    end
+
+    if ENV["INCLUDE_MACOS_X64"] == "true"
+        push!(results, Dict("os" => "macos-13", "juliaup-channel" => "nightly~x64"))
+    end
+
+    if if ENV["INCLUDE_MACOS_AARCH64"] == "true"
+        push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "nightly~aarch64"))
+    end
+
 end
 
 # flat_versions = [

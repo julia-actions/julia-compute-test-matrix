@@ -33,6 +33,30 @@ inputs:
     type: boolean
     required: false
     default: false
+  include-windows-x64:
+    type: boolean
+    required: false
+    default: true
+  include-windows-x86:
+    type: boolean
+    required: false
+    default: true
+  include-linux-x64:
+    type: boolean
+    required: false
+    default: true
+  include-linux-x86:
+    type: boolean
+    required: false
+    default: true
+  include-macos-x64:
+    type: boolean
+    required: false
+    default: true
+  include-macos-aarch64:
+    type: boolean
+    required: false
+    default: true
 outputs:
   test-matrix:
     value: ${{ steps.compute-test-matrix.outputs.test-matrix }}
@@ -82,3 +106,9 @@ runs:
         INCLUDE_BETA_VERSIONS: ${{ inputs.include-beta-versions }}
         INCLUDE_ALPHA_VERSIONS: ${{ inputs.include-alpha-versions }}
         INCLUDE_NIGHTLY_VERSIONS: ${{ inputs.include-nightly-versions }}
+        INCLUDE_WINDOWS_X64: ${{ inputs.include-windows-x64 }}
+        INCLUDE_WINDOWS_X86: ${{ inputs.include-windows-x86 }}
+        INCLUDE_LINUX_X64: ${{ inputs.include-linux-x64 }}
+        INCLUDE_LINUX_X86: ${{ inputs.include-linux-x86 }}
+        INCLUDE_MACOS_X64: ${{ inputs.include-macos-x64 }}
+        INCLUDE_MACOS_AARCH64: ${{ inputs.include-macos-aarch64 }}
