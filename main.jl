@@ -71,7 +71,7 @@ function add_matrix_entries!(results, v)
         end
     end
     
-    if if ENV["INCLUDE_MACOS_AARCH64"] == "true" && v>=v"1.8.0"
+    if ENV["INCLUDE_MACOS_AARCH64"] == "true" && v>=v"1.8.0"
         push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "$v~aarch64"))
     end
 end
@@ -103,7 +103,7 @@ if ENV["INCLUDE_RC_VERSIONS"] == "true"
         push!(results, Dict("os" => "macos-13", "juliaup-channel" => "rc~x64"))
     end
 
-    if if ENV["INCLUDE_MACOS_AARCH64"] == "true"
+    if ENV["INCLUDE_MACOS_AARCH64"] == "true"
         push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "rc~aarch64"))
     end
 
@@ -136,10 +136,9 @@ if ENV["INCLUDE_NIGHTLY_VERSIONS"] == "true"
         push!(results, Dict("os" => "macos-13", "juliaup-channel" => "nightly~x64"))
     end
 
-    if if ENV["INCLUDE_MACOS_AARCH64"] == "true"
+    if ENV["INCLUDE_MACOS_AARCH64"] == "true"
         push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "nightly~aarch64"))
     end
-
 end
 
 # flat_versions = [
