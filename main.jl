@@ -19,18 +19,18 @@ all_existing_versions = [
     v"1.7.3",
     v"1.8.5",
     v"1.9.4",
-    v"1.10.5",
-    v"1.11.0"
+    v"1.10.7",
+    v"1.11.2"
 ]
 
 all_compatible_versions = filter(i -> i in version_spec, all_existing_versions)
 
 if ENV["INCLUDE_RELEASE_VERSIONS"] == "true"
-    push!(versions, v"1.11.0")
+    push!(versions, v"1.11.2")
 end
 
 if ENV["INCLUDE_LTS_VERSIONS"] == "true"
-    push!(versions, v"1.10.5")
+    push!(versions, v"1.10.7")
 end
 
 if ENV["INCLUDE_ALL_COMPATIBLE_MINOR_VERSIONS"] == "true"
@@ -64,10 +64,8 @@ function add_matrix_entries!(results, v)
     end
 
     if ENV["INCLUDE_MACOS_X64"] == "true"
-        if v==v"1.4.2"
-            # For some reason Julia 1.4 doesn't work on macos-13, so we downgrade to macos-12
-            push!(results, Dict("os" => "macos-12", "juliaup-channel" => "$v~x64"))
-        else
+        # There is currently no known way to run Julia 1.4 on a Mac GitHub runner, so we skip
+        if v != v"1.4.2"
             push!(results, Dict("os" => "macos-13", "juliaup-channel" => "$v~x64"))
         end
     end
