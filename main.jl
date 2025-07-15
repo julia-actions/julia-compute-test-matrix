@@ -19,18 +19,18 @@ all_existing_versions = [
     v"1.7.3",
     v"1.8.5",
     v"1.9.4",
-    v"1.10.9",
-    v"1.11.5"
+    v"1.10.10",
+    v"1.11.6"
 ]
 
 all_compatible_versions = filter(i -> i in version_spec, all_existing_versions)
 
 if ENV["INCLUDE_RELEASE_VERSIONS"] == "true"
-    push!(versions, v"1.11.5")
+    push!(versions, v"1.11.6")
 end
 
 if ENV["INCLUDE_LTS_VERSIONS"] == "true"
-    push!(versions, v"1.10.9")
+    push!(versions, v"1.10.10")
 end
 
 if ENV["INCLUDE_ALL_COMPATIBLE_MINOR_VERSIONS"] == "true"
@@ -82,30 +82,29 @@ for v in versions
 end
 
 if ENV["INCLUDE_RC_VERSIONS"] == "true"
-    # if ENV["INCLUDE_WINDOWS_X64"] == "true"
-    #     push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x64"))
-    # end
+    if ENV["INCLUDE_WINDOWS_X64"] == "true"
+        push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x64"))
+    end
 
-    # if ENV["INCLUDE_WINDOWS_X86"] == "true"
-    #     push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x86"))
-    # end
+    if ENV["INCLUDE_WINDOWS_X86"] == "true"
+        push!(results, Dict("os" => "windows-latest", "juliaup-channel" => "rc~x86"))
+    end
 
-    # if ENV["INCLUDE_LINUX_X64"] == "true"
-    #     push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x64"))
-    # end
+    if ENV["INCLUDE_LINUX_X64"] == "true"
+        push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x64"))
+    end
 
-    # if ENV["INCLUDE_LINUX_X86"] == "true"
-    #     push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x86"))
-    # end
+    if ENV["INCLUDE_LINUX_X86"] == "true"
+        push!(results, Dict("os" => "ubuntu-latest", "juliaup-channel" => "rc~x86"))
+    end
 
-    # if ENV["INCLUDE_MACOS_X64"] == "true"
-    #     push!(results, Dict("os" => "macos-13", "juliaup-channel" => "rc~x64"))
-    # end
+    if ENV["INCLUDE_MACOS_X64"] == "true"
+        push!(results, Dict("os" => "macos-13", "juliaup-channel" => "rc~x64"))
+    end
 
-    # if ENV["INCLUDE_MACOS_AARCH64"] == "true"
-    #     push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "rc~aarch64"))
-    # end
-
+    if ENV["INCLUDE_MACOS_AARCH64"] == "true"
+        push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "rc~aarch64"))
+    end
 end
 
 if ENV["INCLUDE_BETA_VERSIONS"] == "true"
