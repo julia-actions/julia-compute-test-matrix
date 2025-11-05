@@ -20,13 +20,14 @@ all_existing_versions = [
     v"1.8.5",
     v"1.9.4",
     v"1.10.10",
-    v"1.11.6"
+    v"1.11.7",
+    v"1.12.1"
 ]
 
 all_compatible_versions = filter(i -> i in version_spec, all_existing_versions)
 
 if ENV["INCLUDE_RELEASE_VERSIONS"] == "true"
-    push!(versions, v"1.11.6")
+    push!(versions, v"1.12.1")
 end
 
 if ENV["INCLUDE_LTS_VERSIONS"] == "true"
