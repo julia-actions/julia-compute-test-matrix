@@ -20,14 +20,14 @@ all_existing_versions = [
     v"1.8.5",
     v"1.9.4",
     v"1.10.10",
-    v"1.11.7",
-    v"1.12.1"
+    v"1.11.9",
+    v"1.12.5"
 ]
 
 all_compatible_versions = filter(i -> i in version_spec, all_existing_versions)
 
 if ENV["INCLUDE_RELEASE_VERSIONS"] == "true"
-    push!(versions, v"1.12.1")
+    push!(versions, v"1.12.5")
 end
 
 if ENV["INCLUDE_LTS_VERSIONS"] == "true"
@@ -67,12 +67,12 @@ function add_matrix_entries!(results, v)
     if ENV["INCLUDE_MACOS_X64"] == "true"
         # There is currently no known way to run Julia 1.4 on a Mac GitHub runner, so we skip
         if v != v"1.4.2"
-            push!(results, Dict("os" => "macos-13", "juliaup-channel" => "$v~x64"))
+            push!(results, Dict("os" => "macos-26-intel", "juliaup-channel" => "$v~x64"))
         end
     end
     
     if ENV["INCLUDE_MACOS_AARCH64"] == "true" && v>=v"1.8.0"
-        push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "$v~aarch64"))
+        push!(results, Dict("os" => "macos-26", "juliaup-channel" => "$v~aarch64"))
     end
 end
 
@@ -100,11 +100,11 @@ if ENV["INCLUDE_RC_VERSIONS"] == "true"
     end
 
     if ENV["INCLUDE_MACOS_X64"] == "true"
-        push!(results, Dict("os" => "macos-13", "juliaup-channel" => "rc~x64"))
+        push!(results, Dict("os" => "macos-26-intel", "juliaup-channel" => "rc~x64"))
     end
 
     if ENV["INCLUDE_MACOS_AARCH64"] == "true"
-        push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "rc~aarch64"))
+        push!(results, Dict("os" => "macos-26", "juliaup-channel" => "rc~aarch64"))
     end
 end
 
@@ -126,11 +126,11 @@ if ENV["INCLUDE_BETA_VERSIONS"] == "true"
     end
 
     if ENV["INCLUDE_MACOS_X64"] == "true"
-        push!(results, Dict("os" => "macos-13", "juliaup-channel" => "beta~x64"))
+        push!(results, Dict("os" => "macos-26-intel", "juliaup-channel" => "beta~x64"))
     end
 
     if ENV["INCLUDE_MACOS_AARCH64"] == "true"
-        push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "beta~aarch64"))
+        push!(results, Dict("os" => "macos-26", "juliaup-channel" => "beta~aarch64"))
     end    
 end
 
@@ -155,11 +155,11 @@ if ENV["INCLUDE_NIGHTLY_VERSIONS"] == "true"
     end
 
     if ENV["INCLUDE_MACOS_X64"] == "true"
-        push!(results, Dict("os" => "macos-13", "juliaup-channel" => "nightly~x64"))
+        push!(results, Dict("os" => "macos-26-intel", "juliaup-channel" => "nightly~x64"))
     end
 
     if ENV["INCLUDE_MACOS_AARCH64"] == "true"
-        push!(results, Dict("os" => "macos-latest", "juliaup-channel" => "nightly~aarch64"))
+        push!(results, Dict("os" => "macos-26", "juliaup-channel" => "nightly~aarch64"))
     end
 end
 
