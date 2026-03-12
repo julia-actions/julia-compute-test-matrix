@@ -1,0 +1,19 @@
+{
+  "name": "julia-compute-test-matrix",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && ncc build dist/src/index.js -o dist",
+    "test": "tsc && node --test dist/test/semver.test.js"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "@iarna/toml": "^2.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vercel/ncc": "^0.38.0",
+    "typescript": "^5.0.0"
+  }
+}

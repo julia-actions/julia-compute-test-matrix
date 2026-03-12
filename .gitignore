@@ -1,0 +1,5 @@
+node_modules/
+
+# Ignore tsc intermediate output, but keep the ncc bundle
+dist/src/
+dist/test/
