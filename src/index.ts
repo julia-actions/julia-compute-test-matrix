@@ -2,25 +2,16 @@ import * as fs from 'fs';
 import * as core from '@actions/core';
 import * as TOML from '@iarna/toml';
 import { parseSemverSpec, satisfies, compareVersions, VersionTriple } from './semver';
-
-const ALL_EXISTING_VERSIONS: VersionTriple[] = [
-  [1, 0, 5],
-  [1, 1, 1],
-  [1, 2, 0],
-  [1, 3, 1],
-  [1, 4, 2],
-  [1, 5, 4],
-  [1, 6, 7],
-  [1, 7, 3],
-  [1, 8, 5],
-  [1, 9, 4],
-  [1, 10, 10],
-  [1, 11, 9],
-  [1, 12, 5],
-];
-
-const RELEASE_VERSION: VersionTriple = [1, 12, 5];
-const LTS_VERSION: VersionTriple = [1, 10, 10];
+import {
+  fetchAllVersionDbs,
+  getAllMinorVersions,
+  getReleaseVersion,
+  getLtsVersion,
+  isVersionAvailableOnPlatform,
+  resolvePreReleaseChannel,
+  PlatformName,
+  JuliaupVersionDB,
+} from './versions';
 
 interface MatrixEntry {
   os: string;
@@ -40,54 +31,74 @@ function formatVersion(v: VersionTriple): string {
   return `${v[0]}.${v[1]}.${v[2]}`;
 }
 
-function addMatrixEntries(results: MatrixEntry[], v: VersionTriple, options: PlatformOptions): void {
+interface PlatformEntry {
+  platform: PlatformName;
+  os: string;
+  arch: string;
+  enabled: (options: PlatformOptions) => boolean;
+}
+
+const PLATFORMS: PlatformEntry[] = [
+  { platform: 'windows-x64', os: 'windows-latest', arch: 'x64', enabled: (o) => o.includeWindowsX64 },
+  { platform: 'windows-x86', os: 'windows-latest', arch: 'x86', enabled: (o) => o.includeWindowsX86 },
+  { platform: 'linux-x64', os: 'ubuntu-latest', arch: 'x64', enabled: (o) => o.includeLinuxX64 },
+  { platform: 'linux-x86', os: 'ubuntu-latest', arch: 'x86', enabled: (o) => o.includeLinuxX86 },
+  { platform: 'macos-x64', os: 'macos-26-intel', arch: 'x64', enabled: (o) => o.includeMacosX64 },
+  { platform: 'macos-aarch64', os: 'macos-26', arch: 'aarch64', enabled: (o) => o.includeMacosAarch64 },
+];
+
+function addMatrixEntries(
+  results: MatrixEntry[],
+  v: VersionTriple,
+  options: PlatformOptions,
+  versionDbs: Map<PlatformName, JuliaupVersionDB>,
+): void {
   const vStr = formatVersion(v);
 
-  if (options.includeWindowsX64) {
-    results.push({ os: 'windows-latest', 'juliaup-channel': `${vStr}~x64` });
-  }
-  if (options.includeWindowsX86) {
-    results.push({ os: 'windows-latest', 'juliaup-channel': `${vStr}~x86` });
-  }
-  if (options.includeLinuxX64) {
-    results.push({ os: 'ubuntu-latest', 'juliaup-channel': `${vStr}~x64` });
-  }
-  if (options.includeLinuxX86) {
-    results.push({ os: 'ubuntu-latest', 'juliaup-channel': `${vStr}~x86` });
-  }
-  if (options.includeMacosX64) {
-    // There is currently no known way to run Julia 1.4 on a Mac GitHub runner, so we skip
-    if (!(v[0] === 1 && v[1] === 4 && v[2] === 2)) {
-      results.push({ os: 'macos-26-intel', 'juliaup-channel': `${vStr}~x64` });
-    }
-  }
-  if (options.includeMacosAarch64 && compareVersions(v, [1, 8, 0]) >= 0) {
-    results.push({ os: 'macos-26', 'juliaup-channel': `${vStr}~aarch64` });
+  for (const { platform, os, arch, enabled } of PLATFORMS) {
+    if (!enabled(options)) continue;
+
+    // Julia 1.4 on macOS doesn't work despite existing in the versiondb
+    if (platform === 'macos-x64' && v[0] === 1 && v[1] === 4) continue;
+
+    if (!isVersionAvailableOnPlatform(versionDbs, v, platform)) continue;
+
+    results.push({ os, 'juliaup-channel': `${vStr}~${arch}` });
   }
 }
 
-function addPreReleaseEntries(results: MatrixEntry[], channel: string, options: PlatformOptions): void {
-  if (options.includeWindowsX64) {
-    results.push({ os: 'windows-latest', 'juliaup-channel': `${channel}~x64` });
+function addPreReleaseEntries(
+  results: MatrixEntry[],
+  channel: string,
+  options: PlatformOptions,
+  referenceDb: JuliaupVersionDB,
+  selectedVersions: VersionTriple[],
+): void {
+  // Check if this pre-release channel resolves to a version already in the stable matrix
+  const resolvedVersion = resolvePreReleaseChannel(referenceDb, channel);
+  if (resolvedVersion) {
+    const isDuplicate = selectedVersions.some(
+      v => v[0] === resolvedVersion[0] && v[1] === resolvedVersion[1] && v[2] === resolvedVersion[2]
+    );
+    if (isDuplicate) return;
   }
-  if (options.includeWindowsX86) {
-    results.push({ os: 'windows-latest', 'juliaup-channel': `${channel}~x86` });
-  }
-  if (options.includeLinuxX64) {
-    results.push({ os: 'ubuntu-latest', 'juliaup-channel': `${channel}~x64` });
-  }
-  if (options.includeLinuxX86) {
-    results.push({ os: 'ubuntu-latest', 'juliaup-channel': `${channel}~x86` });
-  }
-  if (options.includeMacosX64) {
-    results.push({ os: 'macos-26-intel', 'juliaup-channel': `${channel}~x64` });
-  }
-  if (options.includeMacosAarch64) {
-    results.push({ os: 'macos-26', 'juliaup-channel': `${channel}~aarch64` });
+
+  for (const { os, arch, enabled } of PLATFORMS) {
+    if (!enabled(options)) continue;
+    results.push({ os, 'juliaup-channel': `${channel}~${arch}` });
   }
 }
 
-function run(): void {
+async function run(): Promise<void> {
+  const versionDbs = await fetchAllVersionDbs();
+
+  // Use Linux x64 as the reference platform for channel queries
+  const referenceDb = versionDbs.get('linux-x64')!;
+
+  const allExistingVersions = getAllMinorVersions(referenceDb);
+  const releaseVersion = getReleaseVersion(referenceDb);
+  const ltsVersion = getLtsVersion(referenceDb);
+
   const projectContent = fs.readFileSync('Project.toml', 'utf8');
   const project = TOML.parse(projectContent);
   const juliaCompat = (project as any).compat?.julia as string | undefined;
@@ -98,7 +109,7 @@ function run(): void {
 
   const spec = parseSemverSpec(juliaCompat);
 
-  const allCompatibleVersions = ALL_EXISTING_VERSIONS.filter(v => satisfies(v, spec));
+  const allCompatibleVersions = allExistingVersions.filter(v => satisfies(v, spec));
 
   const versionSet = new Map<string, VersionTriple>();
 
@@ -112,11 +123,11 @@ function run(): void {
   };
 
   if (core.getBooleanInput('include-release-versions')) {
-    versionSet.set(formatVersion(RELEASE_VERSION), RELEASE_VERSION);
+    versionSet.set(formatVersion(releaseVersion), releaseVersion);
   }
 
   if (core.getBooleanInput('include-lts-versions')) {
-    versionSet.set(formatVersion(LTS_VERSION), LTS_VERSION);
+    versionSet.set(formatVersion(ltsVersion), ltsVersion);
   }
 
   if (core.getBooleanInput('include-all-compatible-minor-versions')) {
@@ -144,29 +155,27 @@ function run(): void {
   const selectedVersions = [...versionSet.values()].sort((a, b) => compareVersions(a, b));
 
   for (const v of selectedVersions) {
-    addMatrixEntries(results, v, options);
+    addMatrixEntries(results, v, options, versionDbs);
   }
 
   if (core.getBooleanInput('include-rc-versions')) {
-    addPreReleaseEntries(results, 'rc', options);
+    addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions);
   }
 
   if (core.getBooleanInput('include-beta-versions')) {
-    addPreReleaseEntries(results, 'beta', options);
+    addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions);
   }
 
   // Alpha versions: currently a no-op (same as Julia implementation)
 
   if (core.getBooleanInput('include-nightly-versions')) {
-    addPreReleaseEntries(results, 'nightly', options);
+    addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions);
   }
 
   console.log(JSON.stringify(results));
   core.setOutput('test-matrix', results);
 }
 
-try {
-  run();
-} catch (error) {
+run().catch(error => {
   core.setFailed((error as Error).message);
-}
+});

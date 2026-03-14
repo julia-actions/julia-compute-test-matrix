@@ -44,71 +44,52 @@ const fs = __importStar(__nccwpck_require__(9896));
 const core = __importStar(__nccwpck_require__(7484));
 const TOML = __importStar(__nccwpck_require__(4572));
 const semver_1 = __nccwpck_require__(2070);
-const ALL_EXISTING_VERSIONS = [
-    [1, 0, 5],
-    [1, 1, 1],
-    [1, 2, 0],
-    [1, 3, 1],
-    [1, 4, 2],
-    [1, 5, 4],
-    [1, 6, 7],
-    [1, 7, 3],
-    [1, 8, 5],
-    [1, 9, 4],
-    [1, 10, 10],
-    [1, 11, 9],
-    [1, 12, 5],
-];
-const RELEASE_VERSION = [1, 12, 5];
-const LTS_VERSION = [1, 10, 10];
+const versions_1 = __nccwpck_require__(971);
 function formatVersion(v) {
     return `${v[0]}.${v[1]}.${v[2]}`;
 }
-function addMatrixEntries(results, v, options) {
+const PLATFORMS = [
+    { platform: 'windows-x64', os: 'windows-latest', arch: 'x64', enabled: (o) => o.includeWindowsX64 },
+    { platform: 'windows-x86', os: 'windows-latest', arch: 'x86', enabled: (o) => o.includeWindowsX86 },
+    { platform: 'linux-x64', os: 'ubuntu-latest', arch: 'x64', enabled: (o) => o.includeLinuxX64 },
+    { platform: 'linux-x86', os: 'ubuntu-latest', arch: 'x86', enabled: (o) => o.includeLinuxX86 },
+    { platform: 'macos-x64', os: 'macos-26-intel', arch: 'x64', enabled: (o) => o.includeMacosX64 },
+    { platform: 'macos-aarch64', os: 'macos-26', arch: 'aarch64', enabled: (o) => o.includeMacosAarch64 },
+];
+function addMatrixEntries(results, v, options, versionDbs) {
     const vStr = formatVersion(v);
-    if (options.includeWindowsX64) {
-        results.push({ os: 'windows-latest', 'juliaup-channel': `${vStr}~x64` });
-    }
-    if (options.includeWindowsX86) {
-        results.push({ os: 'windows-latest', 'juliaup-channel': `${vStr}~x86` });
-    }
-    if (options.includeLinuxX64) {
-        results.push({ os: 'ubuntu-latest', 'juliaup-channel': `${vStr}~x64` });
-    }
-    if (options.includeLinuxX86) {
-        results.push({ os: 'ubuntu-latest', 'juliaup-channel': `${vStr}~x86` });
-    }
-    if (options.includeMacosX64) {
-        // There is currently no known way to run Julia 1.4 on a Mac GitHub runner, so we skip
-        if (!(v[0] === 1 && v[1] === 4 && v[2] === 2)) {
-            results.push({ os: 'macos-26-intel', 'juliaup-channel': `${vStr}~x64` });
-        }
-    }
-    if (options.includeMacosAarch64 && (0, semver_1.compareVersions)(v, [1, 8, 0]) >= 0) {
-        results.push({ os: 'macos-26', 'juliaup-channel': `${vStr}~aarch64` });
+    for (const { platform, os, arch, enabled } of PLATFORMS) {
+        if (!enabled(options))
+            continue;
+        // Julia 1.4 on macOS doesn't work despite existing in the versiondb
+        if (platform === 'macos-x64' && v[0] === 1 && v[1] === 4)
+            continue;
+        if (!(0, versions_1.isVersionAvailableOnPlatform)(versionDbs, v, platform))
+            continue;
+        results.push({ os, 'juliaup-channel': `${vStr}~${arch}` });
     }
 }
-function addPreReleaseEntries(results, channel, options) {
-    if (options.includeWindowsX64) {
-        results.push({ os: 'windows-latest', 'juliaup-channel': `${channel}~x64` });
+function addPreReleaseEntries(results, channel, options, referenceDb, selectedVersions) {
+    // Check if this pre-release channel resolves to a version already in the stable matrix
+    const resolvedVersion = (0, versions_1.resolvePreReleaseChannel)(referenceDb, channel);
+    if (resolvedVersion) {
+        const isDuplicate = selectedVersions.some(v => v[0] === resolvedVersion[0] && v[1] === resolvedVersion[1] && v[2] === resolvedVersion[2]);
+        if (isDuplicate)
+            return;
     }
-    if (options.includeWindowsX86) {
-        results.push({ os: 'windows-latest', 'juliaup-channel': `${channel}~x86` });
-    }
-    if (options.includeLinuxX64) {
-        results.push({ os: 'ubuntu-latest', 'juliaup-channel': `${channel}~x64` });
-    }
-    if (options.includeLinuxX86) {
-        results.push({ os: 'ubuntu-latest', 'juliaup-channel': `${channel}~x86` });
-    }
-    if (options.includeMacosX64) {
-        results.push({ os: 'macos-26-intel', 'juliaup-channel': `${channel}~x64` });
-    }
-    if (options.includeMacosAarch64) {
-        results.push({ os: 'macos-26', 'juliaup-channel': `${channel}~aarch64` });
+    for (const { os, arch, enabled } of PLATFORMS) {
+        if (!enabled(options))
+            continue;
+        results.push({ os, 'juliaup-channel': `${channel}~${arch}` });
     }
 }
-function run() {
+async function run() {
+    const versionDbs = await (0, versions_1.fetchAllVersionDbs)();
+    // Use Linux x64 as the reference platform for channel queries
+    const referenceDb = versionDbs.get('linux-x64');
+    const allExistingVersions = (0, versions_1.getAllMinorVersions)(referenceDb);
+    const releaseVersion = (0, versions_1.getReleaseVersion)(referenceDb);
+    const ltsVersion = (0, versions_1.getLtsVersion)(referenceDb);
     const projectContent = fs.readFileSync('Project.toml', 'utf8');
     const project = TOML.parse(projectContent);
     const juliaCompat = project.compat?.julia;
@@ -116,7 +97,7 @@ function run() {
         throw new Error('No julia compat bound found in Project.toml [compat] section');
     }
     const spec = (0, semver_1.parseSemverSpec)(juliaCompat);
-    const allCompatibleVersions = ALL_EXISTING_VERSIONS.filter(v => (0, semver_1.satisfies)(v, spec));
+    const allCompatibleVersions = allExistingVersions.filter(v => (0, semver_1.satisfies)(v, spec));
     const versionSet = new Map();
     const options = {
         includeWindowsX64: core.getBooleanInput('include-windows-x64'),
@@ -127,10 +108,10 @@ function run() {
         includeMacosAarch64: core.getBooleanInput('include-macos-aarch64'),
     };
     if (core.getBooleanInput('include-release-versions')) {
-        versionSet.set(formatVersion(RELEASE_VERSION), RELEASE_VERSION);
+        versionSet.set(formatVersion(releaseVersion), releaseVersion);
     }
     if (core.getBooleanInput('include-lts-versions')) {
-        versionSet.set(formatVersion(LTS_VERSION), LTS_VERSION);
+        versionSet.set(formatVersion(ltsVersion), ltsVersion);
     }
     if (core.getBooleanInput('include-all-compatible-minor-versions')) {
         for (const v of allCompatibleVersions) {
@@ -152,27 +133,24 @@ function run() {
     const results = [];
     const selectedVersions = [...versionSet.values()].sort((a, b) => (0, semver_1.compareVersions)(a, b));
     for (const v of selectedVersions) {
-        addMatrixEntries(results, v, options);
+        addMatrixEntries(results, v, options, versionDbs);
     }
     if (core.getBooleanInput('include-rc-versions')) {
-        addPreReleaseEntries(results, 'rc', options);
+        addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions);
     }
     if (core.getBooleanInput('include-beta-versions')) {
-        addPreReleaseEntries(results, 'beta', options);
+        addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions);
     }
     // Alpha versions: currently a no-op (same as Julia implementation)
     if (core.getBooleanInput('include-nightly-versions')) {
-        addPreReleaseEntries(results, 'nightly', options);
+        addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions);
     }
     console.log(JSON.stringify(results));
     core.setOutput('test-matrix', results);
 }
-try {
-    run();
-}
-catch (error) {
+run().catch(error => {
     core.setFailed(error.message);
-}
+});
 
 
 /***/ }),
@@ -336,6 +314,132 @@ function satisfies(version, ranges) {
             return false;
         return true;
     });
+}
+
+
+/***/ }),
+
+/***/ 971:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.fetchAllVersionDbs = fetchAllVersionDbs;
+exports.parseChannelVersion = parseChannelVersion;
+exports.getAllMinorVersions = getAllMinorVersions;
+exports.getReleaseVersion = getReleaseVersion;
+exports.getLtsVersion = getLtsVersion;
+exports.isVersionAvailableOnPlatform = isVersionAvailableOnPlatform;
+exports.resolvePreReleaseChannel = resolvePreReleaseChannel;
+const http_client_1 = __nccwpck_require__(4844);
+const PLATFORM_TRIPLETS = {
+    'windows-x64': 'x86_64-pc-windows-msvc',
+    'windows-x86': 'i686-pc-windows-msvc',
+    'linux-x64': 'x86_64-unknown-linux-gnu',
+    'linux-x86': 'i686-unknown-linux-gnu',
+    'macos-x64': 'x86_64-apple-darwin',
+    'macos-aarch64': 'aarch64-apple-darwin',
+};
+const DBVERSION_URL = 'https://julialang-s3.julialang.org/juliaup/DBVERSION';
+const VERSIONDB_URL_TEMPLATE = 'https://julialang-s3.julialang.org/juliaup/versiondb/versiondb-{VERSION}-{PLATFORM}.json';
+// --- Fetch logic ---
+async function fetchAllVersionDbs() {
+    const http = new http_client_1.HttpClient('julia-compute-test-matrix');
+    const dbVersionResponse = await http.get(DBVERSION_URL);
+    const dbVersion = (await dbVersionResponse.readBody()).trim();
+    if (!dbVersion) {
+        throw new Error('Failed to fetch DBVERSION: empty response');
+    }
+    const platforms = Object.entries(PLATFORM_TRIPLETS);
+    const results = await Promise.all(platforms.map(async ([name, triplet]) => {
+        const url = VERSIONDB_URL_TEMPLATE
+            .replace('{VERSION}', dbVersion)
+            .replace('{PLATFORM}', triplet);
+        const response = await http.get(url);
+        const body = await response.readBody();
+        const db = JSON.parse(body);
+        return [name, db];
+    }));
+    return new Map(results);
+}
+// --- Version extraction ---
+/**
+ * Parse the semver portion from a Juliaup version string like "1.10.10+0.x64.linux.gnu".
+ * Returns the [major, minor, patch] triple.
+ */
+function parseChannelVersion(versionStr) {
+    const semver = versionStr.split('+')[0];
+    // Strip pre-release tag (e.g. "1.13.0-rc1" → "1.13.0")
+    const base = semver.split('-')[0];
+    const parts = base.split('.').map(Number);
+    if (parts.length < 3 || parts.some(isNaN)) {
+        throw new Error(`Invalid channel version string: "${versionStr}"`);
+    }
+    return [parts[0], parts[1], parts[2]];
+}
+/**
+ * Extract all minor versions (latest patch each) from the versiondb.
+ * Uses channel keys matching "MAJOR.MINOR" (no tilde, no extra qualifier).
+ * Any single platform's versiondb can be used since channel mappings are the same.
+ */
+function getAllMinorVersions(db) {
+    const minorKeyPattern = /^\d+\.\d+$/;
+    const versions = [];
+    for (const [key, channel] of Object.entries(db.AvailableChannels)) {
+        if (minorKeyPattern.test(key)) {
+            versions.push(parseChannelVersion(channel.Version));
+        }
+    }
+    versions.sort((a, b) => {
+        if (a[0] !== b[0])
+            return a[0] - b[0];
+        if (a[1] !== b[1])
+            return a[1] - b[1];
+        return a[2] - b[2];
+    });
+    return versions;
+}
+/**
+ * Get the release version from the versiondb.
+ */
+function getReleaseVersion(db) {
+    const channel = db.AvailableChannels['release'];
+    if (!channel) {
+        throw new Error('No "release" channel found in versiondb');
+    }
+    return parseChannelVersion(channel.Version);
+}
+/**
+ * Get the LTS version from the versiondb.
+ */
+function getLtsVersion(db) {
+    const channel = db.AvailableChannels['lts'];
+    if (!channel) {
+        throw new Error('No "lts" channel found in versiondb');
+    }
+    return parseChannelVersion(channel.Version);
+}
+/**
+ * Check if a specific version is available on a given platform.
+ * Looks for a channel key matching "MAJOR.MINOR.PATCH" in the platform's versiondb.
+ */
+function isVersionAvailableOnPlatform(versionDbs, version, platform) {
+    const db = versionDbs.get(platform);
+    if (!db)
+        return false;
+    const versionKey = `${version[0]}.${version[1]}.${version[2]}`;
+    return versionKey in db.AvailableChannels;
+}
+/**
+ * Resolve a pre-release channel (e.g. "rc", "beta") to its underlying version.
+ * Returns null if the channel doesn't exist in the versiondb.
+ */
+function resolvePreReleaseChannel(db, channel) {
+    const entry = db.AvailableChannels[channel];
+    if (!entry)
+        return null;
+    return parseChannelVersion(entry.Version);
 }
 
 

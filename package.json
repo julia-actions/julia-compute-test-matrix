@@ -5,10 +5,11 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && ncc build dist/src/index.js -o dist",
-    "test": "tsc && node --test dist/test/semver.test.js"
+    "test": "tsc && node --test dist/test/semver.test.js dist/test/versions.test.js"
   },
   "dependencies": {
     "@actions/core": "^1.10.0",
+    "@actions/http-client": "^2.2.3",
     "@iarna/toml": "^2.2.5"
   },
   "devDependencies": {
