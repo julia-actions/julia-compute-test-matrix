@@ -8,6 +8,7 @@ import {
   getReleaseVersion,
   getLtsVersion,
   isVersionAvailableOnPlatform,
+  isChannelAvailableOnPlatform,
   resolvePreReleaseChannel,
   PlatformName,
   JuliaupVersionDB,
@@ -61,7 +62,7 @@ function addMatrixEntries(
     // Julia 1.4 on macOS doesn't work despite existing in the versiondb
     if (platform === 'macos-x64' && v[0] === 1 && v[1] === 4) continue;
 
-    if (!isVersionAvailableOnPlatform(versionDbs, v, platform)) continue;
+    if (!isVersionAvailableOnPlatform(versionDbs, v, platform, arch)) continue;
 
     results.push({ os, 'juliaup-channel': `${vStr}~${arch}` });
   }
@@ -73,6 +74,7 @@ function addPreReleaseEntries(
   options: PlatformOptions,
   referenceDb: JuliaupVersionDB,
   selectedVersions: VersionTriple[],
+  versionDbs: Map<PlatformName, JuliaupVersionDB>,
 ): void {
   // Check if this pre-release channel resolves to a version already in the stable matrix
   const resolvedVersion = resolvePreReleaseChannel(referenceDb, channel);
@@ -83,8 +85,9 @@ function addPreReleaseEntries(
     if (isDuplicate) return;
   }
 
-  for (const { os, arch, enabled } of PLATFORMS) {
+  for (const { platform, os, arch, enabled } of PLATFORMS) {
     if (!enabled(options)) continue;
+    if (!isChannelAvailableOnPlatform(versionDbs, channel, platform, arch)) continue;
     results.push({ os, 'juliaup-channel': `${channel}~${arch}` });
   }
 }
@@ -159,17 +162,17 @@ async function run(): Promise<void> {
   }
 
   if (core.getBooleanInput('include-rc-versions')) {
-    addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions);
+    addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions, versionDbs);
   }
 
   if (core.getBooleanInput('include-beta-versions')) {
-    addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions);
+    addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions, versionDbs);
   }
 
   // Alpha versions: currently a no-op (same as Julia implementation)
 
   if (core.getBooleanInput('include-nightly-versions')) {
-    addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions);
+    addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions, versionDbs);
   }
 
   console.log(JSON.stringify(results));

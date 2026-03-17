@@ -130,19 +130,38 @@ export function getLtsVersion(db: JuliaupVersionDB): VersionTriple {
 }
 
 /**
- * Check if a specific version is available on a given platform.
- * Looks for a channel key matching "MAJOR.MINOR.PATCH" in the platform's versiondb.
+ * Check if a specific version is available on a given platform with the given architecture.
+ * Looks for a channel key matching "MAJOR.MINOR.PATCH~ARCH" in the platform's versiondb
+ * to ensure a native binary exists (not just Rosetta-emulated).
  */
 export function isVersionAvailableOnPlatform(
   versionDbs: Map<PlatformName, JuliaupVersionDB>,
   version: VersionTriple,
   platform: PlatformName,
+  arch: string,
 ): boolean {
   const db = versionDbs.get(platform);
   if (!db) return false;
 
-  const versionKey = `${version[0]}.${version[1]}.${version[2]}`;
-  return versionKey in db.AvailableChannels;
+  const channelKey = `${version[0]}.${version[1]}.${version[2]}~${arch}`;
+  return channelKey in db.AvailableChannels;
+}
+
+/**
+ * Check if a named channel (e.g. "rc", "beta", "nightly") with a specific architecture
+ * is available on a given platform.
+ */
+export function isChannelAvailableOnPlatform(
+  versionDbs: Map<PlatformName, JuliaupVersionDB>,
+  channel: string,
+  platform: PlatformName,
+  arch: string,
+): boolean {
+  const db = versionDbs.get(platform);
+  if (!db) return false;
+
+  const channelKey = `${channel}~${arch}`;
+  return channelKey in db.AvailableChannels;
 }
 
 /**

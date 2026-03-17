@@ -64,12 +64,12 @@ function addMatrixEntries(results, v, options, versionDbs) {
         // Julia 1.4 on macOS doesn't work despite existing in the versiondb
         if (platform === 'macos-x64' && v[0] === 1 && v[1] === 4)
             continue;
-        if (!(0, versions_1.isVersionAvailableOnPlatform)(versionDbs, v, platform))
+        if (!(0, versions_1.isVersionAvailableOnPlatform)(versionDbs, v, platform, arch))
             continue;
         results.push({ os, 'juliaup-channel': `${vStr}~${arch}` });
     }
 }
-function addPreReleaseEntries(results, channel, options, referenceDb, selectedVersions) {
+function addPreReleaseEntries(results, channel, options, referenceDb, selectedVersions, versionDbs) {
     // Check if this pre-release channel resolves to a version already in the stable matrix
     const resolvedVersion = (0, versions_1.resolvePreReleaseChannel)(referenceDb, channel);
     if (resolvedVersion) {
@@ -77,8 +77,10 @@ function addPreReleaseEntries(results, channel, options, referenceDb, selectedVe
         if (isDuplicate)
             return;
     }
-    for (const { os, arch, enabled } of PLATFORMS) {
+    for (const { platform, os, arch, enabled } of PLATFORMS) {
         if (!enabled(options))
+            continue;
+        if (!(0, versions_1.isChannelAvailableOnPlatform)(versionDbs, channel, platform, arch))
             continue;
         results.push({ os, 'juliaup-channel': `${channel}~${arch}` });
     }
@@ -136,14 +138,14 @@ async function run() {
         addMatrixEntries(results, v, options, versionDbs);
     }
     if (core.getBooleanInput('include-rc-versions')) {
-        addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions);
+        addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions, versionDbs);
     }
     if (core.getBooleanInput('include-beta-versions')) {
-        addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions);
+        addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions, versionDbs);
     }
     // Alpha versions: currently a no-op (same as Julia implementation)
     if (core.getBooleanInput('include-nightly-versions')) {
-        addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions);
+        addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions, versionDbs);
     }
     console.log(JSON.stringify(results));
     core.setOutput('test-matrix', results);
@@ -331,6 +333,7 @@ exports.getAllMinorVersions = getAllMinorVersions;
 exports.getReleaseVersion = getReleaseVersion;
 exports.getLtsVersion = getLtsVersion;
 exports.isVersionAvailableOnPlatform = isVersionAvailableOnPlatform;
+exports.isChannelAvailableOnPlatform = isChannelAvailableOnPlatform;
 exports.resolvePreReleaseChannel = resolvePreReleaseChannel;
 const http_client_1 = __nccwpck_require__(4844);
 const PLATFORM_TRIPLETS = {
@@ -421,15 +424,27 @@ function getLtsVersion(db) {
     return parseChannelVersion(channel.Version);
 }
 /**
- * Check if a specific version is available on a given platform.
- * Looks for a channel key matching "MAJOR.MINOR.PATCH" in the platform's versiondb.
+ * Check if a specific version is available on a given platform with the given architecture.
+ * Looks for a channel key matching "MAJOR.MINOR.PATCH~ARCH" in the platform's versiondb
+ * to ensure a native binary exists (not just Rosetta-emulated).
  */
-function isVersionAvailableOnPlatform(versionDbs, version, platform) {
+function isVersionAvailableOnPlatform(versionDbs, version, platform, arch) {
     const db = versionDbs.get(platform);
     if (!db)
         return false;
-    const versionKey = `${version[0]}.${version[1]}.${version[2]}`;
-    return versionKey in db.AvailableChannels;
+    const channelKey = `${version[0]}.${version[1]}.${version[2]}~${arch}`;
+    return channelKey in db.AvailableChannels;
+}
+/**
+ * Check if a named channel (e.g. "rc", "beta", "nightly") with a specific architecture
+ * is available on a given platform.
+ */
+function isChannelAvailableOnPlatform(versionDbs, channel, platform, arch) {
+    const db = versionDbs.get(platform);
+    if (!db)
+        return false;
+    const channelKey = `${channel}~${arch}`;
+    return channelKey in db.AvailableChannels;
 }
 /**
  * Resolve a pre-release channel (e.g. "rc", "beta") to its underlying version.
