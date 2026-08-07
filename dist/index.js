@@ -41,10 +41,40 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
 const core = __importStar(__nccwpck_require__(7484));
 const TOML = __importStar(__nccwpck_require__(4572));
 const semver_1 = __nccwpck_require__(2070);
 const versions_1 = __nccwpck_require__(971);
+const INPUT_DEFAULTS = {
+    'include-release-versions': true,
+    'include-lts-versions': true,
+    'include-all-compatible-minor-versions': false,
+    'include-smallest-compatible-minor-versions': true,
+    'include-rc-versions': false,
+    'include-beta-versions': false,
+    'include-alpha-versions': false,
+    'include-nightly-versions': false,
+    'include-windows-x64': true,
+    'include-windows-x86': true,
+    'include-linux-x64': true,
+    'include-linux-x86': true,
+    'include-macos-x64': true,
+    'include-macos-aarch64': true,
+};
+// Like core.getBooleanInput, but an empty/unset input falls back to the
+// action.yml default instead of throwing (callers often pass through
+// expressions that resolve to '').
+function getBoolInput(name) {
+    const raw = core.getInput(name).trim().toLowerCase();
+    if (raw === '')
+        return INPUT_DEFAULTS[name];
+    if (raw === 'true')
+        return true;
+    if (raw === 'false')
+        return false;
+    throw new TypeError(`Input "${name}" must be 'true' or 'false', got '${raw}'`);
+}
 function formatVersion(v) {
     return `${v[0]}.${v[1]}.${v[2]}`;
 }
@@ -66,7 +96,7 @@ function addMatrixEntries(results, v, options, versionDbs) {
             continue;
         if (!(0, versions_1.isVersionAvailableOnPlatform)(versionDbs, v, platform, arch))
             continue;
-        results.push({ os, 'juliaup-channel': `${vStr}~${arch}` });
+        results.push({ os, 'juliaup-channel': `${vStr}~${arch}`, experimental: false });
     }
 }
 function addPreReleaseEntries(results, channel, options, referenceDb, selectedVersions, versionDbs) {
@@ -80,9 +110,11 @@ function addPreReleaseEntries(results, channel, options, referenceDb, selectedVe
     for (const { platform, os, arch, enabled } of PLATFORMS) {
         if (!enabled(options))
             continue;
-        if (!(0, versions_1.isChannelAvailableOnPlatform)(versionDbs, channel, platform, arch))
+        // The nightly channel is resolved by juliaup itself and never appears in the
+        // versiondb, so the availability check only applies to the other channels.
+        if (channel !== 'nightly' && !(0, versions_1.isChannelAvailableOnPlatform)(versionDbs, channel, platform, arch))
             continue;
-        results.push({ os, 'juliaup-channel': `${channel}~${arch}` });
+        results.push({ os, 'juliaup-channel': `${channel}~${arch}`, experimental: true });
     }
 }
 async function run() {
@@ -92,7 +124,14 @@ async function run() {
     const allExistingVersions = (0, versions_1.getAllMinorVersions)(referenceDb);
     const releaseVersion = (0, versions_1.getReleaseVersion)(referenceDb);
     const ltsVersion = (0, versions_1.getLtsVersion)(referenceDb);
-    const projectContent = fs.readFileSync('Project.toml', 'utf8');
+    const projectDir = core.getInput('project-path') || '.';
+    const projectFile = ['JuliaProject.toml', 'Project.toml']
+        .map(f => path.join(projectDir, f))
+        .find(f => fs.existsSync(f));
+    if (!projectFile) {
+        throw new Error(`No Project.toml or JuliaProject.toml found in '${projectDir}'`);
+    }
+    const projectContent = fs.readFileSync(projectFile, 'utf8');
     const project = TOML.parse(projectContent);
     const juliaCompat = project.compat?.julia;
     if (!juliaCompat) {
@@ -102,25 +141,25 @@ async function run() {
     const allCompatibleVersions = allExistingVersions.filter(v => (0, semver_1.satisfies)(v, spec));
     const versionSet = new Map();
     const options = {
-        includeWindowsX64: core.getBooleanInput('include-windows-x64'),
-        includeWindowsX86: core.getBooleanInput('include-windows-x86'),
-        includeLinuxX64: core.getBooleanInput('include-linux-x64'),
-        includeLinuxX86: core.getBooleanInput('include-linux-x86'),
-        includeMacosX64: core.getBooleanInput('include-macos-x64'),
-        includeMacosAarch64: core.getBooleanInput('include-macos-aarch64'),
+        includeWindowsX64: getBoolInput('include-windows-x64'),
+        includeWindowsX86: getBoolInput('include-windows-x86'),
+        includeLinuxX64: getBoolInput('include-linux-x64'),
+        includeLinuxX86: getBoolInput('include-linux-x86'),
+        includeMacosX64: getBoolInput('include-macos-x64'),
+        includeMacosAarch64: getBoolInput('include-macos-aarch64'),
     };
-    if (core.getBooleanInput('include-release-versions')) {
+    if (getBoolInput('include-release-versions')) {
         versionSet.set(formatVersion(releaseVersion), releaseVersion);
     }
-    if (core.getBooleanInput('include-lts-versions')) {
+    if (getBoolInput('include-lts-versions')) {
         versionSet.set(formatVersion(ltsVersion), ltsVersion);
     }
-    if (core.getBooleanInput('include-all-compatible-minor-versions')) {
+    if (getBoolInput('include-all-compatible-minor-versions')) {
         for (const v of allCompatibleVersions) {
             versionSet.set(formatVersion(v), v);
         }
     }
-    if (core.getBooleanInput('include-smallest-compatible-minor-versions')) {
+    if (getBoolInput('include-smallest-compatible-minor-versions')) {
         if (allCompatibleVersions.length > 0) {
             const sorted = [...allCompatibleVersions].sort((a, b) => (0, semver_1.compareVersions)(a, b));
             versionSet.set(formatVersion(sorted[0]), sorted[0]);
@@ -137,14 +176,16 @@ async function run() {
     for (const v of selectedVersions) {
         addMatrixEntries(results, v, options, versionDbs);
     }
-    if (core.getBooleanInput('include-rc-versions')) {
+    if (getBoolInput('include-rc-versions')) {
         addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions, versionDbs);
     }
-    if (core.getBooleanInput('include-beta-versions')) {
+    if (getBoolInput('include-beta-versions')) {
         addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions, versionDbs);
     }
-    // Alpha versions: currently a no-op (same as Julia implementation)
-    if (core.getBooleanInput('include-nightly-versions')) {
+    if (getBoolInput('include-alpha-versions')) {
+        addPreReleaseEntries(results, 'alpha', options, referenceDb, selectedVersions, versionDbs);
+    }
+    if (getBoolInput('include-nightly-versions')) {
         addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions, versionDbs);
     }
     console.log(JSON.stringify(results));

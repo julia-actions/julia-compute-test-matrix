@@ -1,65 +1,73 @@
 name: 'Julia compute test matrix'
-description: 'Compute a test matrix'
+description: 'Compute a CI test matrix of Julia versions and platforms from the julia compat bound in Project.toml'
 inputs:
+  project-path:
+    description: 'Directory containing the Project.toml (or JuliaProject.toml) whose [compat] julia bound is used'
+    required: false
+    default: '.'
   include-release-versions:
-    type: boolean
+    description: 'Include the current Julia release version in the matrix'
     required: false
     default: true
   include-lts-versions:
-    type: boolean
+    description: 'Include the current Julia LTS version in the matrix'
     required: false
     default: true
   include-all-compatible-minor-versions:
-    type: boolean
+    description: 'Include the latest patch of every minor Julia version compatible with the compat bound'
     required: false
     default: false
   include-smallest-compatible-minor-versions:
-    type: boolean
+    description: 'Include the smallest minor Julia version compatible with the compat bound'
     required: false
     default: true
   include-rc-versions:
-    type: boolean
+    description: 'Include the rc channel (skipped if it resolves to a version already in the matrix)'
     required: false
     default: false
   include-beta-versions:
-    type: boolean
+    description: 'Include the beta channel (skipped if it resolves to a version already in the matrix)'
     required: false
     default: false
   include-alpha-versions:
-    type: boolean
+    description: 'Include the alpha channel (skipped if it resolves to a version already in the matrix)'
     required: false
     default: false
   include-nightly-versions:
-    type: boolean
+    description: 'Include the nightly channel'
     required: false
     default: false
   include-windows-x64:
-    type: boolean
+    description: 'Include Windows x64 (runs on windows-latest)'
     required: false
     default: true
   include-windows-x86:
-    type: boolean
+    description: 'Include Windows x86 (runs on windows-latest)'
     required: false
     default: true
   include-linux-x64:
-    type: boolean
+    description: 'Include Linux x64 (runs on ubuntu-latest)'
     required: false
     default: true
   include-linux-x86:
-    type: boolean
+    description: 'Include Linux x86 (runs on ubuntu-latest)'
     required: false
     default: true
   include-macos-x64:
-    type: boolean
+    description: 'Include macOS x64 (runs on macos-26-intel)'
     required: false
     default: true
   include-macos-aarch64:
-    type: boolean
+    description: 'Include macOS aarch64 (runs on macos-26)'
     required: false
     default: true
 outputs:
   test-matrix:
-    description: 'The computed test matrix'
+    description: >-
+      JSON array of matrix entries {"os", "juliaup-channel", "experimental"}, for use with
+      strategy.matrix.include via fromJson. "os" is a GitHub runner label, "juliaup-channel"
+      is a juliaup channel of the form "<version>~<arch>" or "<rc|beta|alpha|nightly>~<arch>",
+      and "experimental" is true for pre-release channel entries.
 runs:
   using: 'node20'
   main: 'dist/index.js'
