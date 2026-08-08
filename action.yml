@@ -69,5 +69,5 @@ outputs:
       is a juliaup channel of the form "<version>~<arch>" or "<rc|beta|alpha|nightly>~<arch>",
       and "experimental" is true for pre-release channel entries.
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
