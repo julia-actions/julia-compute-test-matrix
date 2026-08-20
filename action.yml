@@ -61,13 +61,23 @@ inputs:
     description: 'Include macOS aarch64 (runs on macos-26)'
     required: false
     default: true
+  allow-failure:
+    description: >-
+      Comma- or newline-separated globs marking matrix legs that may fail without failing the
+      workflow, matched against "<juliaup-channel>:<os>" (e.g. "rc~x64:ubuntu-latest"). Parts a
+      pattern leaves out are filled in with wildcards, so "rc" covers every arch and runner and
+      "*~x86" covers every 32-bit leg. Use "none" for "nothing may fail".
+    required: false
+    default: 'rc,beta,alpha,nightly'
 outputs:
   test-matrix:
     description: >-
-      JSON array of matrix entries {"os", "juliaup-channel", "experimental"}, for use with
-      strategy.matrix.include via fromJson. "os" is a GitHub runner label, "juliaup-channel"
-      is a juliaup channel of the form "<version>~<arch>" or "<rc|beta|alpha|nightly>~<arch>",
-      and "experimental" is true for pre-release channel entries.
+      JSON array of matrix entries {"os", "juliaup-channel", "experimental", "allow-failure"},
+      for use with strategy.matrix.include via fromJson. "os" is a GitHub runner label,
+      "juliaup-channel" is a juliaup channel of the form "<version>~<arch>" or
+      "<rc|beta|alpha|nightly>~<arch>", "experimental" is true for pre-release channel entries,
+      and "allow-failure" is true when the leg matched the allow-failure input — feed it to
+      continue-on-error.
 runs:
   using: 'node24'
   main: 'dist/index.js'

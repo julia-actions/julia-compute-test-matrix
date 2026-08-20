@@ -1,6 +1,66 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 4343:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+// Decides which matrix legs are allowed to fail without failing the workflow.
+//
+// The caller passes a list of glob patterns; each is matched against the leg's
+// "<juliaup-channel>:<os>" identity, e.g. "rc~x64:ubuntu-latest". Whether a leg
+// is *blocking* is CI policy, not a property of the leg, so it is expressed as
+// patterns rather than as a fixed rule over pre-release channels.
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseAllowFailurePatterns = parseAllowFailurePatterns;
+exports.isAllowFailure = isAllowFailure;
+// Nothing is allowed to fail. Needed as an explicit word because the reusable
+// workflows that wrap this action treat an empty input as "inherit the default".
+const NONE = 'none';
+function parseAllowFailurePatterns(raw) {
+    const parts = raw
+        .split(/[,\n]/)
+        .map(p => p.trim())
+        .filter(p => p !== '');
+    if (parts.length === 1 && parts[0].toLowerCase() === NONE) {
+        return [];
+    }
+    return parts;
+}
+function escapeRegex(s) {
+    return s.replace(/[^A-Za-z0-9_-]/g, c => '\\' + c);
+}
+// Patterns are written at whatever precision the author cares about: "rc" names a
+// channel, "*~x86" an arch, "rc~x64:ubuntu-latest" one exact leg. The parts the
+// pattern leaves out are filled in with wildcards before matching.
+function expandPattern(pattern) {
+    let expanded = pattern;
+    // No arch, no runner, no wildcard — a bare channel name such as "rc".
+    if (!/[~:*]/.test(expanded)) {
+        expanded = expanded + '~*';
+    }
+    if (!expanded.includes(':')) {
+        expanded = expanded + ':*';
+    }
+    return expanded;
+}
+function globToRegex(pattern) {
+    const body = expandPattern(pattern)
+        .split('*')
+        .map(escapeRegex)
+        .join('.*');
+    return new RegExp(`^${body}$`);
+}
+// `channel` is a juliaup channel such as "1.10.5~x64" or "rc~x64".
+function isAllowFailure(channel, os, patterns) {
+    const identity = `${channel}:${os}`;
+    return patterns.some(p => globToRegex(p).test(identity));
+}
+
+
+/***/ }),
+
 /***/ 4584:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -46,6 +106,7 @@ const core = __importStar(__nccwpck_require__(7484));
 const TOML = __importStar(__nccwpck_require__(4572));
 const semver_1 = __nccwpck_require__(2070);
 const versions_1 = __nccwpck_require__(971);
+const allowFailure_1 = __nccwpck_require__(4343);
 const INPUT_DEFAULTS = {
     'include-release-versions': true,
     'include-lts-versions': true,
@@ -75,6 +136,12 @@ function getBoolInput(name) {
         return false;
     throw new TypeError(`Input "${name}" must be 'true' or 'false', got '${raw}'`);
 }
+const ALLOW_FAILURE_DEFAULT = 'rc,beta,alpha,nightly';
+// Same empty-means-default contract as getBoolInput.
+function getAllowFailurePatterns() {
+    const raw = core.getInput('allow-failure').trim();
+    return (0, allowFailure_1.parseAllowFailurePatterns)(raw === '' ? ALLOW_FAILURE_DEFAULT : raw);
+}
 function formatVersion(v) {
     return `${v[0]}.${v[1]}.${v[2]}`;
 }
@@ -86,7 +153,7 @@ const PLATFORMS = [
     { platform: 'macos-x64', os: 'macos-26-intel', arch: 'x64', enabled: (o) => o.includeMacosX64 },
     { platform: 'macos-aarch64', os: 'macos-26', arch: 'aarch64', enabled: (o) => o.includeMacosAarch64 },
 ];
-function addMatrixEntries(results, v, options, versionDbs) {
+function addMatrixEntries(results, v, options, versionDbs, allowFailurePatterns) {
     const vStr = formatVersion(v);
     for (const { platform, os, arch, enabled } of PLATFORMS) {
         if (!enabled(options))
@@ -96,10 +163,16 @@ function addMatrixEntries(results, v, options, versionDbs) {
             continue;
         if (!(0, versions_1.isVersionAvailableOnPlatform)(versionDbs, v, platform, arch))
             continue;
-        results.push({ os, 'juliaup-channel': `${vStr}~${arch}`, experimental: false });
+        const channel = `${vStr}~${arch}`;
+        results.push({
+            os,
+            'juliaup-channel': channel,
+            experimental: false,
+            'allow-failure': (0, allowFailure_1.isAllowFailure)(channel, os, allowFailurePatterns),
+        });
     }
 }
-function addPreReleaseEntries(results, channel, options, referenceDb, selectedVersions, versionDbs) {
+function addPreReleaseEntries(results, channel, options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns) {
     // Check if this pre-release channel resolves to a version already in the stable matrix
     const resolvedVersion = (0, versions_1.resolvePreReleaseChannel)(referenceDb, channel);
     if (resolvedVersion) {
@@ -114,7 +187,13 @@ function addPreReleaseEntries(results, channel, options, referenceDb, selectedVe
         // versiondb, so the availability check only applies to the other channels.
         if (channel !== 'nightly' && !(0, versions_1.isChannelAvailableOnPlatform)(versionDbs, channel, platform, arch))
             continue;
-        results.push({ os, 'juliaup-channel': `${channel}~${arch}`, experimental: true });
+        const legChannel = `${channel}~${arch}`;
+        results.push({
+            os,
+            'juliaup-channel': legChannel,
+            experimental: true,
+            'allow-failure': (0, allowFailure_1.isAllowFailure)(legChannel, os, allowFailurePatterns),
+        });
     }
 }
 async function run() {
@@ -140,6 +219,7 @@ async function run() {
     const spec = (0, semver_1.parseSemverSpec)(juliaCompat);
     const allCompatibleVersions = allExistingVersions.filter(v => (0, semver_1.satisfies)(v, spec));
     const versionSet = new Map();
+    const allowFailurePatterns = getAllowFailurePatterns();
     const options = {
         includeWindowsX64: getBoolInput('include-windows-x64'),
         includeWindowsX86: getBoolInput('include-windows-x86'),
@@ -174,19 +254,19 @@ async function run() {
     const results = [];
     const selectedVersions = [...versionSet.values()].sort((a, b) => (0, semver_1.compareVersions)(a, b));
     for (const v of selectedVersions) {
-        addMatrixEntries(results, v, options, versionDbs);
+        addMatrixEntries(results, v, options, versionDbs, allowFailurePatterns);
     }
     if (getBoolInput('include-rc-versions')) {
-        addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions, versionDbs);
+        addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns);
     }
     if (getBoolInput('include-beta-versions')) {
-        addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions, versionDbs);
+        addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns);
     }
     if (getBoolInput('include-alpha-versions')) {
-        addPreReleaseEntries(results, 'alpha', options, referenceDb, selectedVersions, versionDbs);
+        addPreReleaseEntries(results, 'alpha', options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns);
     }
     if (getBoolInput('include-nightly-versions')) {
-        addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions, versionDbs);
+        addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns);
     }
     console.log(JSON.stringify(results));
     core.setOutput('test-matrix', results);

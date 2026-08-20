@@ -14,11 +14,15 @@ import {
   PlatformName,
   JuliaupVersionDB,
 } from './versions';
+import { isAllowFailure, parseAllowFailurePatterns } from './allowFailure';
 
 interface MatrixEntry {
   os: string;
   'juliaup-channel': string;
+  // Whether the entry uses a pre-release channel — a fact about the leg.
   experimental: boolean;
+  // Whether the leg may fail without failing the workflow — CI policy.
+  'allow-failure': boolean;
 }
 
 const INPUT_DEFAULTS: Record<string, boolean> = {
@@ -47,6 +51,14 @@ function getBoolInput(name: string): boolean {
   if (raw === 'true') return true;
   if (raw === 'false') return false;
   throw new TypeError(`Input "${name}" must be 'true' or 'false', got '${raw}'`);
+}
+
+const ALLOW_FAILURE_DEFAULT = 'rc,beta,alpha,nightly';
+
+// Same empty-means-default contract as getBoolInput.
+function getAllowFailurePatterns(): string[] {
+  const raw = core.getInput('allow-failure').trim();
+  return parseAllowFailurePatterns(raw === '' ? ALLOW_FAILURE_DEFAULT : raw);
 }
 
 interface PlatformOptions {
@@ -83,6 +95,7 @@ function addMatrixEntries(
   v: VersionTriple,
   options: PlatformOptions,
   versionDbs: Map<PlatformName, JuliaupVersionDB>,
+  allowFailurePatterns: string[],
 ): void {
   const vStr = formatVersion(v);
 
@@ -94,7 +107,13 @@ function addMatrixEntries(
 
     if (!isVersionAvailableOnPlatform(versionDbs, v, platform, arch)) continue;
 
-    results.push({ os, 'juliaup-channel': `${vStr}~${arch}`, experimental: false });
+    const channel = `${vStr}~${arch}`;
+    results.push({
+      os,
+      'juliaup-channel': channel,
+      experimental: false,
+      'allow-failure': isAllowFailure(channel, os, allowFailurePatterns),
+    });
   }
 }
 
@@ -105,6 +124,7 @@ function addPreReleaseEntries(
   referenceDb: JuliaupVersionDB,
   selectedVersions: VersionTriple[],
   versionDbs: Map<PlatformName, JuliaupVersionDB>,
+  allowFailurePatterns: string[],
 ): void {
   // Check if this pre-release channel resolves to a version already in the stable matrix
   const resolvedVersion = resolvePreReleaseChannel(referenceDb, channel);
@@ -120,7 +140,13 @@ function addPreReleaseEntries(
     // The nightly channel is resolved by juliaup itself and never appears in the
     // versiondb, so the availability check only applies to the other channels.
     if (channel !== 'nightly' && !isChannelAvailableOnPlatform(versionDbs, channel, platform, arch)) continue;
-    results.push({ os, 'juliaup-channel': `${channel}~${arch}`, experimental: true });
+    const legChannel = `${channel}~${arch}`;
+    results.push({
+      os,
+      'juliaup-channel': legChannel,
+      experimental: true,
+      'allow-failure': isAllowFailure(legChannel, os, allowFailurePatterns),
+    });
   }
 }
 
@@ -154,6 +180,8 @@ async function run(): Promise<void> {
   const allCompatibleVersions = allExistingVersions.filter(v => satisfies(v, spec));
 
   const versionSet = new Map<string, VersionTriple>();
+
+  const allowFailurePatterns = getAllowFailurePatterns();
 
   const options: PlatformOptions = {
     includeWindowsX64: getBoolInput('include-windows-x64'),
@@ -197,23 +225,23 @@ async function run(): Promise<void> {
   const selectedVersions = [...versionSet.values()].sort((a, b) => compareVersions(a, b));
 
   for (const v of selectedVersions) {
-    addMatrixEntries(results, v, options, versionDbs);
+    addMatrixEntries(results, v, options, versionDbs, allowFailurePatterns);
   }
 
   if (getBoolInput('include-rc-versions')) {
-    addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions, versionDbs);
+    addPreReleaseEntries(results, 'rc', options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns);
   }
 
   if (getBoolInput('include-beta-versions')) {
-    addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions, versionDbs);
+    addPreReleaseEntries(results, 'beta', options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns);
   }
 
   if (getBoolInput('include-alpha-versions')) {
-    addPreReleaseEntries(results, 'alpha', options, referenceDb, selectedVersions, versionDbs);
+    addPreReleaseEntries(results, 'alpha', options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns);
   }
 
   if (getBoolInput('include-nightly-versions')) {
-    addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions, versionDbs);
+    addPreReleaseEntries(results, 'nightly', options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns);
   }
 
   console.log(JSON.stringify(results));
