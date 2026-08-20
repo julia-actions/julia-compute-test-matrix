@@ -28,7 +28,7 @@ jobs:
       matrix:
         include: ${{ fromJson(needs.compute-test-matrix.outputs.test-matrix) }}
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
+    continue-on-error: ${{ matrix.allow-failure }}
     steps:
       - uses: actions/checkout@v6
       - uses: julia-actions/install-juliaup@v2
@@ -58,6 +58,7 @@ All inputs are optional.
 | `include-linux-x86` | `true` | Include Linux x86. |
 | `include-macos-x64` | `true` | Include macOS x64. |
 | `include-macos-aarch64` | `true` | Include macOS aarch64. |
+| `allow-failure` | `rc,beta,alpha,nightly` | Globs marking legs that may fail without failing the workflow — see [Allowing legs to fail](#allowing-legs-to-fail). |
 
 Version selections are always filtered to versions compatible with the package's `julia`
 compat bound, and version/platform combinations for which juliaup has no native binary are
@@ -72,7 +73,28 @@ via `fromJson`. Each entry has:
 | --- | --- | --- |
 | `os` | `ubuntu-latest` | GitHub runner label. One of `windows-latest`, `ubuntu-latest`, `macos-26-intel` (x64), `macos-26` (aarch64). |
 | `juliaup-channel` | `1.10.10~x64` | A juliaup channel: `<version>~<arch>` for stable versions, or `<rc\|beta\|alpha\|nightly>~<arch>` for pre-release channels. Pass it to `julia-actions/install-juliaup`'s `channel` input. |
-| `experimental` | `false` | `true` for pre-release channel entries, so callers can use `continue-on-error: ${{ matrix.experimental }}`. |
+| `experimental` | `false` | `true` for pre-release channel entries. A fact about the leg, independent of whether it is allowed to fail. |
+| `allow-failure` | `false` | `true` when the leg matched the `allow-failure` input. Feed it to `continue-on-error: ${{ matrix.allow-failure }}`. |
+
+## Allowing legs to fail
+
+Whether a leg is allowed to fail is CI policy, not a property of the leg, so it is expressed
+as patterns rather than as a fixed rule over pre-release channels. `allow-failure` takes a
+comma- or newline-separated list of globs (`*` is the only wildcard), each matched against the
+leg's `<juliaup-channel>:<os>` identity, e.g. `rc~x64:ubuntu-latest`. Parts a pattern leaves
+out are filled in with wildcards.
+
+| Pattern | Matches |
+| --- | --- |
+| `rc` | every `rc` leg, on every arch and runner |
+| `rc,beta,alpha,nightly` | every pre-release leg (the default) |
+| `*~x86` | every 32-bit leg, stable ones included |
+| `*:macos-26-intel` | every leg on the Intel macOS runner |
+| `rc~x64:ubuntu-latest` | that one leg |
+| `none` | nothing — every leg is blocking |
+
+A pattern is matched literally apart from `*`, so `rc` does not match the stable version
+`1.12.0-rc1~x64`.
 
 ## Development
 
