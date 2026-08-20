@@ -1,5 +1,5 @@
 import { HttpClient } from '@actions/http-client';
-import { VersionTriple } from './semver';
+import { VersionTriple, compareVersions } from './semver';
 
 // --- Juliaup versiondb types ---
 
@@ -68,19 +68,37 @@ export async function fetchAllVersionDbs(): Promise<Map<PlatformName, JuliaupVer
 
 // --- Version extraction ---
 
+/** A Juliaup version, with its pre-release tag kept rather than discarded. */
+export interface ParsedChannelVersion {
+  version: VersionTriple;
+  /** e.g. "rc3", "beta1"; null for a final release. */
+  prerelease: string | null;
+}
+
 /**
- * Parse the semver portion from a Juliaup version string like "1.10.10+0.x64.linux.gnu".
- * Returns the [major, minor, patch] triple.
+ * Parse a Juliaup version string like "1.10.10+0.x64.linux.gnu" or
+ * "1.13.0-rc3+0.x64.linux.gnu" into its version triple and pre-release tag.
  */
-export function parseChannelVersion(versionStr: string): VersionTriple {
+export function parseChannelVersionFull(versionStr: string): ParsedChannelVersion {
   const semver = versionStr.split('+')[0];
-  // Strip pre-release tag (e.g. "1.13.0-rc1" → "1.13.0")
-  const base = semver.split('-')[0];
+  const dash = semver.indexOf('-');
+  const base = dash === -1 ? semver : semver.slice(0, dash);
   const parts = base.split('.').map(Number);
   if (parts.length < 3 || parts.some(isNaN)) {
     throw new Error(`Invalid channel version string: "${versionStr}"`);
   }
-  return [parts[0], parts[1], parts[2]];
+  return {
+    version: [parts[0], parts[1], parts[2]],
+    prerelease: dash === -1 ? null : semver.slice(dash + 1),
+  };
+}
+
+/**
+ * Parse the semver portion from a Juliaup version string like "1.10.10+0.x64.linux.gnu".
+ * Returns the [major, minor, patch] triple, discarding any pre-release tag.
+ */
+export function parseChannelVersion(versionStr: string): VersionTriple {
+  return parseChannelVersionFull(versionStr).version;
 }
 
 /**
@@ -93,9 +111,15 @@ export function getAllMinorVersions(db: JuliaupVersionDB): VersionTriple[] {
   const versions: VersionTriple[] = [];
 
   for (const [key, channel] of Object.entries(db.AvailableChannels)) {
-    if (minorKeyPattern.test(key)) {
-      versions.push(parseChannelVersion(channel.Version));
-    }
+    if (!minorKeyPattern.test(key)) continue;
+    const parsed = parseChannelVersionFull(channel.Version);
+    // A minor channel whose newest build is still a pre-release (juliaup maps "1.13" to
+    // 1.13.0-rc3 until 1.13.0 ships) has no released patch to test. Admitting it would put
+    // a non-existent stable "1.13.0" into the matrix: it produces no legs of its own (there
+    // is no "1.13.0~x64" channel key) and it makes the rc channel look like a duplicate, so
+    // the pre-release leg gets dropped too.
+    if (parsed.prerelease !== null) continue;
+    versions.push(parsed.version);
   }
 
   versions.sort((a, b) => {
@@ -171,8 +195,24 @@ export function isChannelAvailableOnPlatform(
 export function resolvePreReleaseChannel(
   db: JuliaupVersionDB,
   channel: string,
-): VersionTriple | null {
+): ParsedChannelVersion | null {
   const entry = db.AvailableChannels[channel];
   if (!entry) return null;
-  return parseChannelVersion(entry.Version);
+  return parseChannelVersionFull(entry.Version);
+}
+
+/**
+ * Whether a pre-release channel adds nothing over the stable versions already selected.
+ *
+ * A pre-release sorts before the final release of the same version, so 1.13.0-rc3 is
+ * redundant once stable 1.13.0 is in the matrix, but 1.14.0-rc1 never is.
+ */
+export function preReleaseIsRedundant(
+  resolved: ParsedChannelVersion,
+  selectedStable: VersionTriple[],
+): boolean {
+  return selectedStable.some(v => {
+    const c = compareVersions(v, resolved.version);
+    return c > 0 || (c === 0 && resolved.prerelease !== null);
+  });
 }

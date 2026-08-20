@@ -155,6 +155,7 @@ const PLATFORMS = [
 ];
 function addMatrixEntries(results, v, options, versionDbs, allowFailurePatterns) {
     const vStr = formatVersion(v);
+    let added = 0;
     for (const { platform, os, arch, enabled } of PLATFORMS) {
         if (!enabled(options))
             continue;
@@ -170,16 +171,21 @@ function addMatrixEntries(results, v, options, versionDbs, allowFailurePatterns)
             experimental: false,
             'allow-failure': (0, allowFailure_1.isAllowFailure)(channel, os, allowFailurePatterns),
         });
+        added++;
+    }
+    // A selected version that contributes no legs at all is almost always a bug rather than
+    // an intentional skip, and silence is what let it go unnoticed. Say so.
+    if (added === 0) {
+        core.warning(`Julia ${vStr} was selected but has no binary on any enabled platform — no test legs added for it.`);
     }
 }
 function addPreReleaseEntries(results, channel, options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns) {
-    // Check if this pre-release channel resolves to a version already in the stable matrix
-    const resolvedVersion = (0, versions_1.resolvePreReleaseChannel)(referenceDb, channel);
-    if (resolvedVersion) {
-        const isDuplicate = selectedVersions.some(v => v[0] === resolvedVersion[0] && v[1] === resolvedVersion[1] && v[2] === resolvedVersion[2]);
-        if (isDuplicate)
-            return;
-    }
+    // Skip this pre-release channel if the stable matrix already covers it — e.g. once
+    // 1.13.0 ships, the `rc` channel still points at 1.13.0 and adds nothing.
+    const resolved = (0, versions_1.resolvePreReleaseChannel)(referenceDb, channel);
+    if (resolved && (0, versions_1.preReleaseIsRedundant)(resolved, selectedVersions))
+        return;
+    let added = 0;
     for (const { platform, os, arch, enabled } of PLATFORMS) {
         if (!enabled(options))
             continue;
@@ -194,6 +200,10 @@ function addPreReleaseEntries(results, channel, options, referenceDb, selectedVe
             experimental: true,
             'allow-failure': (0, allowFailure_1.isAllowFailure)(legChannel, os, allowFailurePatterns),
         });
+        added++;
+    }
+    if (added === 0) {
+        core.warning(`The '${channel}' channel was requested but produced no test legs on any enabled platform.`);
     }
 }
 async function run() {
@@ -449,6 +459,7 @@ function satisfies(version, ranges) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.fetchAllVersionDbs = fetchAllVersionDbs;
+exports.parseChannelVersionFull = parseChannelVersionFull;
 exports.parseChannelVersion = parseChannelVersion;
 exports.getAllMinorVersions = getAllMinorVersions;
 exports.getReleaseVersion = getReleaseVersion;
@@ -456,7 +467,9 @@ exports.getLtsVersion = getLtsVersion;
 exports.isVersionAvailableOnPlatform = isVersionAvailableOnPlatform;
 exports.isChannelAvailableOnPlatform = isChannelAvailableOnPlatform;
 exports.resolvePreReleaseChannel = resolvePreReleaseChannel;
+exports.preReleaseIsRedundant = preReleaseIsRedundant;
 const http_client_1 = __nccwpck_require__(4844);
+const semver_1 = __nccwpck_require__(2070);
 const PLATFORM_TRIPLETS = {
     'windows-x64': 'x86_64-pc-windows-msvc',
     'windows-x86': 'i686-pc-windows-msvc',
@@ -487,20 +500,29 @@ async function fetchAllVersionDbs() {
     }));
     return new Map(results);
 }
-// --- Version extraction ---
 /**
- * Parse the semver portion from a Juliaup version string like "1.10.10+0.x64.linux.gnu".
- * Returns the [major, minor, patch] triple.
+ * Parse a Juliaup version string like "1.10.10+0.x64.linux.gnu" or
+ * "1.13.0-rc3+0.x64.linux.gnu" into its version triple and pre-release tag.
  */
-function parseChannelVersion(versionStr) {
+function parseChannelVersionFull(versionStr) {
     const semver = versionStr.split('+')[0];
-    // Strip pre-release tag (e.g. "1.13.0-rc1" → "1.13.0")
-    const base = semver.split('-')[0];
+    const dash = semver.indexOf('-');
+    const base = dash === -1 ? semver : semver.slice(0, dash);
     const parts = base.split('.').map(Number);
     if (parts.length < 3 || parts.some(isNaN)) {
         throw new Error(`Invalid channel version string: "${versionStr}"`);
     }
-    return [parts[0], parts[1], parts[2]];
+    return {
+        version: [parts[0], parts[1], parts[2]],
+        prerelease: dash === -1 ? null : semver.slice(dash + 1),
+    };
+}
+/**
+ * Parse the semver portion from a Juliaup version string like "1.10.10+0.x64.linux.gnu".
+ * Returns the [major, minor, patch] triple, discarding any pre-release tag.
+ */
+function parseChannelVersion(versionStr) {
+    return parseChannelVersionFull(versionStr).version;
 }
 /**
  * Extract all minor versions (latest patch each) from the versiondb.
@@ -511,9 +533,17 @@ function getAllMinorVersions(db) {
     const minorKeyPattern = /^\d+\.\d+$/;
     const versions = [];
     for (const [key, channel] of Object.entries(db.AvailableChannels)) {
-        if (minorKeyPattern.test(key)) {
-            versions.push(parseChannelVersion(channel.Version));
-        }
+        if (!minorKeyPattern.test(key))
+            continue;
+        const parsed = parseChannelVersionFull(channel.Version);
+        // A minor channel whose newest build is still a pre-release (juliaup maps "1.13" to
+        // 1.13.0-rc3 until 1.13.0 ships) has no released patch to test. Admitting it would put
+        // a non-existent stable "1.13.0" into the matrix: it produces no legs of its own (there
+        // is no "1.13.0~x64" channel key) and it makes the rc channel look like a duplicate, so
+        // the pre-release leg gets dropped too.
+        if (parsed.prerelease !== null)
+            continue;
+        versions.push(parsed.version);
     }
     versions.sort((a, b) => {
         if (a[0] !== b[0])
@@ -575,7 +605,19 @@ function resolvePreReleaseChannel(db, channel) {
     const entry = db.AvailableChannels[channel];
     if (!entry)
         return null;
-    return parseChannelVersion(entry.Version);
+    return parseChannelVersionFull(entry.Version);
+}
+/**
+ * Whether a pre-release channel adds nothing over the stable versions already selected.
+ *
+ * A pre-release sorts before the final release of the same version, so 1.13.0-rc3 is
+ * redundant once stable 1.13.0 is in the matrix, but 1.14.0-rc1 never is.
+ */
+function preReleaseIsRedundant(resolved, selectedStable) {
+    return selectedStable.some(v => {
+        const c = (0, semver_1.compareVersions)(v, resolved.version);
+        return c > 0 || (c === 0 && resolved.prerelease !== null);
+    });
 }
 
 

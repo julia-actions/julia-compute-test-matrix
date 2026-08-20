@@ -11,6 +11,7 @@ import {
   isVersionAvailableOnPlatform,
   isChannelAvailableOnPlatform,
   resolvePreReleaseChannel,
+  preReleaseIsRedundant,
   PlatformName,
   JuliaupVersionDB,
 } from './versions';
@@ -98,6 +99,7 @@ function addMatrixEntries(
   allowFailurePatterns: string[],
 ): void {
   const vStr = formatVersion(v);
+  let added = 0;
 
   for (const { platform, os, arch, enabled } of PLATFORMS) {
     if (!enabled(options)) continue;
@@ -114,6 +116,13 @@ function addMatrixEntries(
       experimental: false,
       'allow-failure': isAllowFailure(channel, os, allowFailurePatterns),
     });
+    added++;
+  }
+
+  // A selected version that contributes no legs at all is almost always a bug rather than
+  // an intentional skip, and silence is what let it go unnoticed. Say so.
+  if (added === 0) {
+    core.warning(`Julia ${vStr} was selected but has no binary on any enabled platform — no test legs added for it.`);
   }
 }
 
@@ -126,15 +135,12 @@ function addPreReleaseEntries(
   versionDbs: Map<PlatformName, JuliaupVersionDB>,
   allowFailurePatterns: string[],
 ): void {
-  // Check if this pre-release channel resolves to a version already in the stable matrix
-  const resolvedVersion = resolvePreReleaseChannel(referenceDb, channel);
-  if (resolvedVersion) {
-    const isDuplicate = selectedVersions.some(
-      v => v[0] === resolvedVersion[0] && v[1] === resolvedVersion[1] && v[2] === resolvedVersion[2]
-    );
-    if (isDuplicate) return;
-  }
+  // Skip this pre-release channel if the stable matrix already covers it — e.g. once
+  // 1.13.0 ships, the `rc` channel still points at 1.13.0 and adds nothing.
+  const resolved = resolvePreReleaseChannel(referenceDb, channel);
+  if (resolved && preReleaseIsRedundant(resolved, selectedVersions)) return;
 
+  let added = 0;
   for (const { platform, os, arch, enabled } of PLATFORMS) {
     if (!enabled(options)) continue;
     // The nightly channel is resolved by juliaup itself and never appears in the
@@ -147,6 +153,11 @@ function addPreReleaseEntries(
       experimental: true,
       'allow-failure': isAllowFailure(legChannel, os, allowFailurePatterns),
     });
+    added++;
+  }
+
+  if (added === 0) {
+    core.warning(`The '${channel}' channel was requested but produced no test legs on any enabled platform.`);
   }
 }
 
