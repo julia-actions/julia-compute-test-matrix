@@ -8,6 +8,8 @@ import {
   isVersionAvailableOnPlatform,
   isChannelAvailableOnPlatform,
   resolvePreReleaseChannel,
+  parseChannelVersionFull,
+  preReleaseIsRedundant,
   JuliaupVersionDB,
   PlatformName,
 } from '../src/versions';
@@ -55,6 +57,26 @@ describe('getAllMinorVersions', () => {
       [1, 10, 10],
       [1, 12, 5],
     ]);
+  });
+
+  it('skips a minor channel that still points at a pre-release', () => {
+    const db = makeDb({
+      '1.12': { Version: '1.12.7+0.x64.linux.gnu' },
+      // Before 1.13.0 ships, juliaup maps the "1.13" channel to the newest RC. There is no
+      // released 1.13.0 to test, and no "1.13.0~x64" binary either.
+      '1.13': { Version: '1.13.0-rc3+0.x64.linux.gnu' },
+    });
+
+    assert.deepStrictEqual(getAllMinorVersions(db), [[1, 12, 7]]);
+  });
+
+  it('includes a minor channel once it points at a final release', () => {
+    const db = makeDb({
+      '1.12': { Version: '1.12.7+0.x64.linux.gnu' },
+      '1.13': { Version: '1.13.0+0.x64.linux.gnu' },
+    });
+
+    assert.deepStrictEqual(getAllMinorVersions(db), [[1, 12, 7], [1, 13, 0]]);
   });
 
   it('returns empty array when no minor channels exist', () => {
@@ -165,7 +187,7 @@ describe('isChannelAvailableOnPlatform', () => {
 describe('resolvePreReleaseChannel', () => {
   it('resolves rc channel to its version', () => {
     const db = makeDb({ 'rc': { Version: '1.13.0-rc1+0.x64.linux.gnu' } });
-    assert.deepStrictEqual(resolvePreReleaseChannel(db, 'rc'), [1, 13, 0]);
+    assert.deepStrictEqual(resolvePreReleaseChannel(db, 'rc'), { version: [1, 13, 0], prerelease: 'rc1' });
   });
 
   it('returns null when channel does not exist', () => {
@@ -175,6 +197,52 @@ describe('resolvePreReleaseChannel', () => {
 
   it('resolves beta channel', () => {
     const db = makeDb({ 'beta': { Version: '1.14.0-beta1+0.x64.linux.gnu' } });
-    assert.deepStrictEqual(resolvePreReleaseChannel(db, 'beta'), [1, 14, 0]);
+    assert.deepStrictEqual(resolvePreReleaseChannel(db, 'beta'), { version: [1, 14, 0], prerelease: 'beta1' });
+  });
+});
+
+describe('parseChannelVersionFull', () => {
+  it('keeps the pre-release tag', () => {
+    assert.deepStrictEqual(parseChannelVersionFull('1.13.0-rc3+0.x64.linux.gnu'), {
+      version: [1, 13, 0],
+      prerelease: 'rc3',
+    });
+  });
+
+  it('reports null for a final release', () => {
+    assert.deepStrictEqual(parseChannelVersionFull('1.12.5+0.x64.apple.darwin14'), {
+      version: [1, 12, 5],
+      prerelease: null,
+    });
+  });
+});
+
+describe('preReleaseIsRedundant', () => {
+  it('is redundant once the same version ships stable', () => {
+    assert.strictEqual(
+      preReleaseIsRedundant({ version: [1, 13, 0], prerelease: 'rc3' }, [[1, 12, 7], [1, 13, 0]]),
+      true,
+    );
+  });
+
+  it('is not redundant while only older stable versions are selected', () => {
+    assert.strictEqual(
+      preReleaseIsRedundant({ version: [1, 13, 0], prerelease: 'rc3' }, [[1, 11, 9], [1, 12, 7]]),
+      false,
+    );
+  });
+
+  it('is not redundant for a newer minor than anything stable', () => {
+    assert.strictEqual(
+      preReleaseIsRedundant({ version: [1, 14, 0], prerelease: 'rc1' }, [[1, 13, 0]]),
+      false,
+    );
+  });
+
+  it('is redundant when a newer stable version is selected', () => {
+    assert.strictEqual(
+      preReleaseIsRedundant({ version: [1, 13, 0], prerelease: 'rc3' }, [[1, 13, 2]]),
+      true,
+    );
   });
 });
