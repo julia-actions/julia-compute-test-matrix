@@ -204,15 +204,15 @@ export function resolvePreReleaseChannel(
 /**
  * Whether a pre-release channel adds nothing over the stable versions already selected.
  *
- * A pre-release sorts before the final release of the same version, so 1.13.0-rc3 is
- * redundant once stable 1.13.0 is in the matrix, but 1.14.0-rc1 never is.
+ * A stable version at or above the channel's triple covers it either way. While the
+ * channel still points at a pre-release, the final release of the same triple sorts above
+ * it (1.13.0 > 1.13.0-rc3). And once juliaup re-points the channel at the final release
+ * itself — `rc` maps to 1.13.0 the day 1.13.0 ships — the leg is an exact duplicate of the
+ * stable one. Either way 1.14.0-rc1 is never redundant against a 1.13 matrix.
  */
 export function preReleaseIsRedundant(
   resolved: ParsedChannelVersion,
   selectedStable: VersionTriple[],
 ): boolean {
-  return selectedStable.some(v => {
-    const c = compareVersions(v, resolved.version);
-    return c > 0 || (c === 0 && resolved.prerelease !== null);
-  });
+  return selectedStable.some(v => compareVersions(v, resolved.version) >= 0);
 }
