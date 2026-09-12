@@ -136,9 +136,18 @@ function addPreReleaseEntries(
   allowFailurePatterns: string[],
 ): void {
   // Skip this pre-release channel if the stable matrix already covers it — e.g. once
-  // 1.13.0 ships, the `rc` channel still points at 1.13.0 and adds nothing.
+  // 1.13.0 ships, the `rc` channel still points at 1.13.0 and adds nothing. Say so: a
+  // requested channel silently producing nothing is the kind of thing that goes unnoticed
+  // for a whole release cycle. This is the guard working as designed, so info, not warning.
   const resolved = resolvePreReleaseChannel(referenceDb, channel);
-  if (resolved && preReleaseIsRedundant(resolved, selectedVersions)) return;
+  if (resolved && preReleaseIsRedundant(resolved, selectedVersions)) {
+    const resolvedStr = formatVersion(resolved.version) +
+      (resolved.prerelease === null ? '' : `-${resolved.prerelease}`);
+    core.info(
+      `Skipping the '${channel}' channel: it resolves to ${resolvedStr}, which the stable matrix already covers.`
+    );
+    return;
+  }
 
   let added = 0;
   for (const { platform, os, arch, enabled } of PLATFORMS) {

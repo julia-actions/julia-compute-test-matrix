@@ -245,4 +245,21 @@ describe('preReleaseIsRedundant', () => {
       true,
     );
   });
+
+  // Juliaup re-points `rc` at the final release the day it ships, so the channel resolves
+  // to a version with no pre-release tag at all — the state the matrix spends most of a
+  // release cycle in.
+  it('is redundant once the channel itself is re-pointed at the shipped release', () => {
+    assert.strictEqual(
+      preReleaseIsRedundant({ version: [1, 13, 0], prerelease: null }, [[1, 12, 7], [1, 13, 0]]),
+      true,
+    );
+  });
+
+  it('is not redundant when a re-pointed channel is ahead of everything stable', () => {
+    assert.strictEqual(
+      preReleaseIsRedundant({ version: [1, 14, 0], prerelease: null }, [[1, 13, 0]]),
+      false,
+    );
+  });
 });

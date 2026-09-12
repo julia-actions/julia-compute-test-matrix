@@ -181,10 +181,16 @@ function addMatrixEntries(results, v, options, versionDbs, allowFailurePatterns)
 }
 function addPreReleaseEntries(results, channel, options, referenceDb, selectedVersions, versionDbs, allowFailurePatterns) {
     // Skip this pre-release channel if the stable matrix already covers it — e.g. once
-    // 1.13.0 ships, the `rc` channel still points at 1.13.0 and adds nothing.
+    // 1.13.0 ships, the `rc` channel still points at 1.13.0 and adds nothing. Say so: a
+    // requested channel silently producing nothing is the kind of thing that goes unnoticed
+    // for a whole release cycle. This is the guard working as designed, so info, not warning.
     const resolved = (0, versions_1.resolvePreReleaseChannel)(referenceDb, channel);
-    if (resolved && (0, versions_1.preReleaseIsRedundant)(resolved, selectedVersions))
+    if (resolved && (0, versions_1.preReleaseIsRedundant)(resolved, selectedVersions)) {
+        const resolvedStr = formatVersion(resolved.version) +
+            (resolved.prerelease === null ? '' : `-${resolved.prerelease}`);
+        core.info(`Skipping the '${channel}' channel: it resolves to ${resolvedStr}, which the stable matrix already covers.`);
         return;
+    }
     let added = 0;
     for (const { platform, os, arch, enabled } of PLATFORMS) {
         if (!enabled(options))
@@ -610,14 +616,14 @@ function resolvePreReleaseChannel(db, channel) {
 /**
  * Whether a pre-release channel adds nothing over the stable versions already selected.
  *
- * A pre-release sorts before the final release of the same version, so 1.13.0-rc3 is
- * redundant once stable 1.13.0 is in the matrix, but 1.14.0-rc1 never is.
+ * A stable version at or above the channel's triple covers it either way. While the
+ * channel still points at a pre-release, the final release of the same triple sorts above
+ * it (1.13.0 > 1.13.0-rc3). And once juliaup re-points the channel at the final release
+ * itself — `rc` maps to 1.13.0 the day 1.13.0 ships — the leg is an exact duplicate of the
+ * stable one. Either way 1.14.0-rc1 is never redundant against a 1.13 matrix.
  */
 function preReleaseIsRedundant(resolved, selectedStable) {
-    return selectedStable.some(v => {
-        const c = (0, semver_1.compareVersions)(v, resolved.version);
-        return c > 0 || (c === 0 && resolved.prerelease !== null);
-    });
+    return selectedStable.some(v => (0, semver_1.compareVersions)(v, resolved.version) >= 0);
 }
 
 
